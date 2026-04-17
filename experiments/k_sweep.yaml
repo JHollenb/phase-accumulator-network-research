@@ -1,5 +1,6 @@
 # K sweep — minimum reliable frequency count.
 experiment: k_sweep
+schema_version: 2
 out_dir:    results/k_sweep
 
 base:
@@ -11,6 +12,6 @@ base:
   early_stop:   true
   save_model:       true
 
-experiment_args:
+grid:
   ks:    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   seeds: [42, 123, 299, 456, 789, 999, 1024, 3456, 8904, 10101]

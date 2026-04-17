@@ -4,6 +4,7 @@
 # quantization error of k*2pi/P for some k. Output: slot_census.png, a heatmap
 # of (seed, encoder) x slot showing who found what. Directly answers Section 5.1.
 experiment: slot_census
+schema_version: 2
 out_dir:    results/slot_census
 
 base:
@@ -16,6 +17,16 @@ base:
   early_stop:       true
   save_model:       true
 
-experiment_args:
+grid:
   seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
           10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+capture:
+  slots: true
+  checkpoints: false
+  stream_curves: false
+analyses: []
+plots:
+  - type: slot_census
+    group_by: seed
+    title: Slot census — P=113 K=9
+    filename: slot_census.png

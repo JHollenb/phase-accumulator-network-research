@@ -1,4 +1,5 @@
 experiment: wd_sweep
+schema_version: 2
 out_dir:    results/wd_sweep
 
 base:
@@ -8,7 +9,7 @@ base:
   log_every:    500
   early_stop:   true
 
-experiment_args:
+grid:
   wds:     [0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
   seeds:   [42, 123, 456]
   k_freqs: 9

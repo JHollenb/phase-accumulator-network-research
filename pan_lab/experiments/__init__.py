@@ -1,7 +1,7 @@
 """pan_lab.experiments — named experiments, driven by YAML configs."""
 from __future__ import annotations
 
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import yaml
 
@@ -62,6 +62,26 @@ def _register_default_experiments() -> None:
 _register_default_experiments()
 
 
+def _normalize_experiment_args(spec: dict[str, Any]) -> dict[str, Any]:
+    """Normalize legacy + v2 experiment YAML fields into exp_args."""
+    exp_args = dict(spec.get("experiment_args", {}) or {})
+
+    schema_version = int(spec.get("schema_version", 1))
+    if schema_version >= 2:
+        grid = spec.get("grid", {}) or {}
+        capture = spec.get("capture", {}) or {}
+        analyses = spec.get("analyses", []) or []
+        plots = spec.get("plots", []) or []
+
+        # `grid` is the declarative replacement for legacy `experiment_args`.
+        exp_args.update(grid)
+        exp_args["capture"] = capture
+        exp_args["analyses"] = analyses
+        exp_args["plots"] = plots
+
+    return exp_args
+
+
 def load_experiment_yaml(path: str) -> tuple:
     with open(path, "r") as f:
         spec = yaml.safe_load(f)
@@ -73,7 +93,7 @@ def load_experiment_yaml(path: str) -> tuple:
     base_dict = spec.get("base", {})
     base_cfg = RunConfig.from_dict(base_dict)
 
-    exp_args = spec.get("experiment_args", {}) or {}
+    exp_args = _normalize_experiment_args(spec)
     return name, base_cfg, out_dir, dry_run, exp_args
 
 
