@@ -5,7 +5,7 @@
 #   make tier3     overnight tier3 mechanistic run
 #   make paper     the full set of runs needed for the paper submission
 
-.PHONY: install test plan smoke \
+.PHONY: install test plan smoke example \
         compare tier3 slot_census k8_sweep dw_sweep wd_sweep primes \
         held_out_primes freq_init decoder_swap sifp16 mod_mul mod_two_step \
         tf_sweep paper clean
@@ -36,6 +36,7 @@ smoke:
 	python -m pan_lab /tmp/panlab_smoke.yaml
 	@echo "smoke output in /tmp/panlab_smoke/"
 
+example:          ;  python -m pan_lab experiments/example.yaml
 compare:          ;  python -m pan_lab experiments/compare.yaml
 tier3:            ;  python -m pan_lab experiments/tier3.yaml
 slot_census:      ;  python -m pan_lab experiments/slot_census.yaml

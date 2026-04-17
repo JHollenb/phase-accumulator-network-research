@@ -1,0 +1,84 @@
+# experiments/example.yaml — canonical reference for every knob and every plot.
+#
+# - base:    mirrors RunConfig defaults from pan_lab/config.py.
+# - options: mirrors grid_sweep option defaults from pan_lab/grid_sweep.py.
+# - plots:   exercises every entry in PLOT_REGISTRY (10 total).
+#
+# Copy this file as the starting point for a new experiment, then delete
+# the lines you don't care about — YAML honors defaults: leaving a field
+# unset produces the same behavior as the value below.
+#
+# Cost note: n_steps=50000 × 3 seeds ≈ 10–15 min on CPU. Lower n_steps
+# (e.g. 2000) for a quick demo; the plots still render.
+
+experiment: grid_sweep
+out_dir:    results/example
+dry_run:    false               # overridden by --dry-run
+
+base:
+  # ── task ──────────────────────────────────────────────────────────
+  p:                  113                # prime modulus
+  task_kind:          mod_add            # mod_add | mod_mul | mod_two_step
+  train_frac:         0.4                # held-out fraction = 1 − train_frac
+
+  # ── model ────────────────────────────────────────────────────────
+  model_kind:         pan                # pan | transformer
+  k_freqs:            9                  # PAN: number of frequency slots per encoder
+  d_model:            128                # transformer only
+  n_heads:            4                  # transformer only
+  d_mlp:              512                # transformer only
+  freq_init:          fourier            # fourier | random  (PAN encoder init)
+
+  # ── optim ────────────────────────────────────────────────────────
+  batch_size:         256
+  lr:                 0.001
+  n_steps:            50000
+  weight_decay:       0.01               # PAN default; transformer baseline uses 1.0
+  diversity_weight:   0.01               # off-diag Gram penalty (PAN only)
+
+  # ── eval ─────────────────────────────────────────────────────────
+  early_stop:         true
+  grok_threshold:     0.99
+  log_every:          200
+  val_samples:        null               # null → full held-out split
+
+  # ── misc ─────────────────────────────────────────────────────────
+  seed:               42
+  label:              run                # per-sub-run labels are overridden by _auto_label
+  use_compile:        false              # do NOT flip — compile hurts MPS determinism
+  record_checkpoints: false              # legacy; prefer options.hooks below
+  save_model:         false              # writes model_<run_id>.pt per run when true
+
+# Cartesian product over seed so sweep_reliability / parameter_efficiency
+# have multiple points. The only non-default in this file.
+grid:
+  seed: [42, 123, 456]
+
+options:
+  ablations:                      true    # writes ablations.csv  → ablation_bars
+  slots:                          true    # writes slots.csv      → slot_census
+  hooks:                          [checkpoint_logger]   # writes checkpoints.csv → freq_(err_)trajectories
+  metrics:                        true    # writes metrics.csv    → metric_formation_curves
+  metrics_expensive_every:        5000    # cadence for expensive metrics (M4/M7/M9); NaN in between
+  metrics_gate_decode_max_rows:   4000    # decode cap for gate-vs-decoder accuracy
+  metrics_logit_spectrum:         false   # M9 logit spectrum — off by default (slow)
+  metrics_logit_spectrum_classes: null    # null → all P classes
+  metrics_spectra:                true    # post-hoc DFT → metrics_spectra.csv + metrics_peaks.csv
+                                          #               → metric_spectra + metric_peak_timescales
+
+plots:
+  # Basic training plots.
+  - {type: training_curves,         title: "training curves"}
+  - {type: sweep_reliability,       group_by: seed, title: "reliability by seed"}
+  - {type: parameter_efficiency}
+
+  # Mechanistic / ablation plots (require options above).
+  - {type: ablation_bars}                          # needs options.ablations
+  - {type: slot_census}                            # needs options.slots
+  - {type: freq_trajectories}                      # needs hooks=[checkpoint_logger]
+  - {type: freq_err_trajectories}                  # needs hooks=[checkpoint_logger]
+
+  # Metric-formation plots (require options.metrics; last two also need metrics_spectra).
+  - {type: metric_formation_curves, title: "metric formation curves"}
+  - {type: metric_spectra,          title: "metric DFT spectra"}
+  - {type: metric_peak_timescales,  title: "metric peak timescales"}
