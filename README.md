@@ -17,26 +17,26 @@ pip install -e .
 pytest                    # 55 tests, ~25s on CPU
 ```
 
-`torch`, `numpy`, `pandas`, `matplotlib`, and `pyyaml` are the only
+`torch`, `numpy`, `pandas`, `matplotlib`, `tabulate`, and `pyyaml` are the only
 runtime dependencies.
 
 ## Quick start
 
 ```
 # List available experiments
-python -m pan_lab --list
+uv run python -m pan_lab --list
 
 # Dry-run any experiment: print every sub-run's config, no training
-python -m pan_lab experiments/k8_sweep.yaml --dry-run
+uv run python -m pan_lab experiments/k8_sweep.yaml --dry-run
 
 # Actually run
-python -m pan_lab experiments/tier3.yaml
+uv run python -m pan_lab experiments/tier3.yaml
 
 # Regenerate plots from existing CSVs (no retraining)
-python -m pan_lab --replot results/tier3
+uv run python -m pan_lab --replot results/tier3
 
 # Ad-hoc run without a YAML file
-python -m pan_lab --ad-hoc compare --p 113 --k 9 --steps 50000
+uv run python -m pan_lab --ad-hoc compare --p 113 --k 9 --steps 50000
 ```
 
 ## What's in the box
@@ -213,7 +213,7 @@ experiment_args:
 ## Test suite
 
 ```
-cd pan_lab && pytest
+uv run pytest
 ```
 
 Covers models (shapes, param counts, init), data (correctness, split
