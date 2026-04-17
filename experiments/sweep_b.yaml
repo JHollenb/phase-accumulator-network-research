@@ -8,7 +8,7 @@ base:
   weight_decay:     0.01
   diversity_weight: 0.01
   log_every:        500
-  early_stop:       true
+  early_stop:       false
   save_model:       true
 
 grid:

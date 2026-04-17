@@ -14,7 +14,7 @@ git SHA, torch version, device, timestamp).
 ```
 cd pan_lab
 pip install -e .
-pytest                    # 55 tests, ~25s on CPU
+pytest                    # 108 tests, ~10s on CPU
 ```
 
 `torch`, `numpy`, `pandas`, `matplotlib`, `tabulate`, and `pyyaml` are the only
@@ -69,6 +69,8 @@ post-training analysis.
 
 "Exp X" labels reference the experiment-ideas table from the
 critical review — the ones the paper needs before submission.
+Additional local sweeps may live in `experiments/` but aren't part of
+the paper set.
 
 ## CSV schema
 
@@ -108,8 +110,31 @@ model_idx, encoder, k, theoretical, learned, learned_raw,
 error, converged, run_id, seed
 ```
 
-**manifest.json** — experiment name, number of runs, provenance
-dict, list of written files.
+**metrics.csv** (when `options.metrics=true` and the run is a PAN) —
+mechanistic training-dynamics metrics, one row per eval step per run.
+Cheap metrics populate every row; expensive metrics (gate-vs-decoder
+accuracies, logit spectra) populate only on the
+`metrics_expensive_every` cadence and are NaN in between.
+```
+run_id, step,
+enc{0,1}_snap_mean/max/min, enc{0,1}_active_n,
+clock_compliance, clock_freq_align_mean, clock_freq_align_n,
+mix_row_entropy_mean, mix_row_eff_n_mean, mix_row_eff_n_min,
+active_freq_count, active_freq_set,
+decoder_fourier_peak_mean, decoder_fourier_peak_max,
+gate_linear_acc, fp32_acc, sifp16_acc, quant_delta, gate_decoder_gap
+```
+
+**metrics_spectra.csv / metrics_peaks.csv** — post-hoc DFT of each
+metric time series: a long spectrum (one row per
+`(run, metric, frequency)`) and a per-`(run, metric)` peak summary.
+See `docs/metrics.md` for what each column captures.
+
+**manifest.json** — experiment name, number of runs, provenance dict,
+and a `files` section cataloguing every artifact in `out_dir` grouped
+by kind (`csvs`, `plots`, `models`, `other`) with name + size. The
+manifest rescans `out_dir` at write time, so post-hoc artifacts (plots,
+spectra CSVs, saved model checkpoints) are included.
 
 ## Directory layout
 
@@ -130,8 +155,8 @@ pan_lab/
 │   ├── experiments.py     EXPERIMENT_REGISTRY + YAML loader + bespoke exps
 │   ├── grid_sweep.py      generic sweep: base + grid + options + plots
 │   └── cli.py             python -m pan_lab entry
-├── experiments/           18 YAML specs
-├── tests/                 55 pytest tests, ~25s on CPU
+├── experiments/           21 YAML specs
+├── tests/                 108 pytest tests, ~10s on CPU
 └── pyproject.toml
 ```
 
@@ -169,8 +194,12 @@ plots:                       # optional; declarative list of figures
 Plot specs are resolved by `PLOT_REGISTRY` in `pan_lab/grid_sweep.py`:
 `training_curves`, `sweep_reliability`, `ablation_bars`,
 `parameter_efficiency`, `slot_census`, `freq_trajectories`,
-`freq_err_trajectories`. Unknown fields in `base` raise a warning but
+`freq_err_trajectories`, `metric_formation_curves`, `metric_spectra`,
+`metric_peak_timescales`. Unknown fields in `base` raise a warning but
 do not fail — you can put comments-as-fields in YAML for future readers.
+
+See `docs/metrics.md` for what each mechanistic metric captures and how
+the three `metric_*` plots display the time series and their DFTs.
 
 ## Adding a new experiment
 
@@ -247,8 +276,11 @@ uv run pytest
 Covers models (shapes, param counts, init), data (correctness, split
 determinism), gradient flow (the critical diversity-reg regression
 test), trainer (dry-run, determinism, early stop), reporting (CSV
-schemas, manifest, summaries), and experiments (YAML parse, registry
-dispatch, every shipped YAML validates).
+schemas, manifest catalog + idempotency, summaries), metrics
+(mechanistic-metrics computation and DFT pipeline), training dynamics
+(spectra / peak summarization), plots (every `PLOT_REGISTRY` entry
+renders), and experiments (YAML parse, registry dispatch, every
+shipped YAML validates).
 
 ## License & provenance
 

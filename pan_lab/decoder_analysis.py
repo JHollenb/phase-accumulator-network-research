@@ -361,6 +361,7 @@ def exp_decoder_analysis(base: RunConfig, out_dir: str,
     print("\n── Decoder analysis summary ──")
     if len(summary_df):
         print(summary_df.to_string(index=False))
+    rep.write_manifest()
     return rep
 
 

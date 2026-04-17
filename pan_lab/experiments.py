@@ -213,6 +213,7 @@ def exp_sifp16_inference(base: RunConfig, out_dir: str,
     quant_df.to_csv(os.path.join(out_dir, "quant_eval.csv"), index=False)
     print("\n── SIFP-16 quantization eval ──")
     print(quant_df.to_string(index=False))
+    rep.write_manifest()
     return rep
 
 
@@ -285,6 +286,7 @@ def exp_decoder_swap(base: RunConfig, out_dir: str,
     swap_df.to_csv(os.path.join(out_dir, "decoder_swap.csv"), index=False)
     print("\n── Decoder-swap eval ──")
     print(swap_df.to_string(index=False))
+    rep.write_manifest()
     return rep
 
 
@@ -826,6 +828,7 @@ def exp_decoder_analysis(base: RunConfig, out_dir: str,
     print("\n── Decoder analysis summary ──")
     if len(summary_df):
         print(summary_df.to_string(index=False))
+    rep.write_manifest()
     return rep
 
 

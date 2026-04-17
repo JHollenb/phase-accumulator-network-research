@@ -69,15 +69,68 @@ def test_manifest_has_provenance(tmp_outdir, one_result):
     r, vx, vy = one_result
     rep = ExperimentReporter("test_exp", str(tmp_outdir))
     rep.add_run(r, val_x=vx, val_y=vy)
-    paths = rep.write_all()
+    rep.write_all()
+    mp = rep.write_manifest()
 
-    with open(paths["manifest.json"]) as f:
+    assert os.path.exists(mp)
+    with open(mp) as f:
         manifest = json.load(f)
     assert manifest["experiment"] == "test_exp"
     assert manifest["n_runs"] == 1
     assert "provenance" in manifest
     assert manifest["provenance"]["torch"] is not None
     assert manifest["provenance"]["device"] in ("cpu", "cuda", "mps")
+
+
+def test_manifest_catalogs_files_by_kind(tmp_outdir, one_result):
+    r, vx, vy = one_result
+    rep = ExperimentReporter("test_exp", str(tmp_outdir))
+    rep.add_run(r, val_x=vx, val_y=vy)
+    rep.write_all()
+
+    # Drop a fake plot + model that the reporter didn't write itself —
+    # they should still show up after the directory rescan.
+    fake_png = os.path.join(str(tmp_outdir), "fake_plot.png")
+    fake_pt  = os.path.join(str(tmp_outdir), "model_foo.pt")
+    with open(fake_png, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n")
+    with open(fake_pt, "wb") as f:
+        f.write(b"fake-weights")
+
+    mp = rep.write_manifest()
+    with open(mp) as f:
+        manifest = json.load(f)
+
+    files = manifest["files"]
+    assert "csvs" in files and "plots" in files and "models" in files
+    plot_names  = {e["name"] for e in files["plots"]}
+    model_names = {e["name"] for e in files["models"]}
+    csv_names   = {e["name"] for e in files["csvs"]}
+    assert "fake_plot.png" in plot_names
+    assert "model_foo.pt"  in model_names
+    assert "runs.csv"      in csv_names
+    # Entries carry a size.
+    for entry in files["plots"] + files["models"] + files["csvs"]:
+        assert entry["size_bytes"] >= 0
+    # manifest.json itself is excluded.
+    all_names = plot_names | model_names | csv_names | {
+        e["name"] for e in files["other"]}
+    assert "manifest.json" not in all_names
+
+
+def test_manifest_is_idempotent(tmp_outdir, one_result):
+    r, vx, vy = one_result
+    rep = ExperimentReporter("test_exp", str(tmp_outdir))
+    rep.add_run(r, val_x=vx, val_y=vy)
+    rep.write_all()
+
+    mp1 = rep.write_manifest()
+    with open(mp1) as f:
+        first = json.load(f)
+    mp2 = rep.write_manifest()
+    with open(mp2) as f:
+        second = json.load(f)
+    assert first == second
 
 
 def test_summary_is_non_empty(tmp_outdir, one_result):

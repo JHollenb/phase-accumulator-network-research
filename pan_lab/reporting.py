@@ -209,7 +209,12 @@ class ExperimentReporter:
     def write_all(self) -> dict:
         """
         Write every non-empty DataFrame to the output dir.
-        Returns a dict mapping kind -> filepath.
+
+        Returns a dict mapping kind -> filepath for the CSVs this
+        method wrote. Does NOT write manifest.json — call
+        `write_manifest()` after all downstream writers (plots,
+        spectra, model checkpoints, bespoke-experiment CSVs) have
+        finished so the manifest indexes everything on disk.
         """
         paths: dict = {}
 
@@ -227,18 +232,48 @@ class ExperimentReporter:
         _w(self.slots_df(),       "slots.csv")
         _w(self.metrics_df(),     "metrics.csv")
 
+        return paths
+
+    # ──────────────────────────────────────────────────────────────
+    def write_manifest(self) -> str:
+        """
+        Scan out_dir and write manifest.json listing every artifact.
+
+        Idempotent — safe to call more than once. Classifies files by
+        extension and known name patterns:
+
+            csvs    — *.csv
+            plots   — *.png
+            models  — model_*.pt
+            other   — everything else (excluding manifest.json itself)
+
+        Returns the path to the written manifest.json.
+        """
+        files: dict = {"csvs": [], "plots": [], "models": [], "other": []}
+        for name in sorted(os.listdir(self.out_dir)):
+            path = os.path.join(self.out_dir, name)
+            if not os.path.isfile(path) or name == "manifest.json":
+                continue
+            entry = {"name": name, "size_bytes": os.path.getsize(path)}
+            if name.endswith(".csv"):
+                files["csvs"].append(entry)
+            elif name.endswith(".png"):
+                files["plots"].append(entry)
+            elif name.startswith("model_") and name.endswith(".pt"):
+                files["models"].append(entry)
+            else:
+                files["other"].append(entry)
+
         manifest = {
             "experiment":  self.name,
             "n_runs":      len(self._runs),
             "provenance":  self._provenance,
-            "files":       paths,
+            "files":       files,
         }
         mp = os.path.join(self.out_dir, "manifest.json")
         with open(mp, "w") as f:
             json.dump(manifest, f, indent=2, default=str)
-        paths["manifest.json"] = mp
-
-        return paths
+        return mp
 
     # ──────────────────────────────────────────────────────────────
     def summary(self) -> pd.DataFrame:

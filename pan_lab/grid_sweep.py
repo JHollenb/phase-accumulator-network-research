@@ -251,6 +251,8 @@ def run_grid_sweep(
     if not dry_run and plots:
         _render_plots(plots, rep, out_dir)
 
+    if not dry_run:
+        rep.write_manifest()
     return rep
 
 
