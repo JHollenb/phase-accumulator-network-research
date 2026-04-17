@@ -1,0 +1,19 @@
+# Experiment I — decoder-swap.
+# At grokking, replace the learned decoder with a theoretical Fourier decoder
+# built from the learned encoder frequencies. If accuracy holds, the rest of
+# the network has converged to a canonical Fourier circuit.
+experiment: decoder_swap
+out_dir:    results/decoder_swap
+
+base:
+  p:                113
+  k_freqs:          9
+  n_steps:          100000
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  log_every:        500
+  early_stop:       true
+  save_model:       true
+
+experiment_args:
+  seeds: [42, 123, 456]

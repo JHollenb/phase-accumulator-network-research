@@ -1,0 +1,18 @@
+# Experiment E — SIFP-16 quantization at inference.
+# Train PAN normally; at test time, quantize phases to the 16-bit grid
+# (the SPF-32 hardware resolution). Measures how tolerant the grokked
+# solution is to the hardware's phase precision.
+experiment: sifp16_inference
+out_dir:    results/sifp16_inference
+
+base:
+  p:                113
+  k_freqs:          9
+  n_steps:          100000
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  log_every:        500
+  early_stop:       true
+
+experiment_args:
+  seeds: [42, 123, 456]

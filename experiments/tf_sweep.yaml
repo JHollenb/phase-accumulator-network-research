@@ -1,0 +1,17 @@
+# Minimum transformer d_model for mod-P.
+# The paper currently compares PAN (~1,319 params) to the full-size
+# Nanda baseline (~227K params). The honest comparison is against the
+# smallest transformer that reliably grokks. This sweep finds it.
+experiment: tf_sweep
+out_dir:    results/tf_sweep
+
+base:
+  p:            113
+  n_steps:      50000
+  weight_decay: 1.0               # Nanda's transformer WD
+  log_every:    500
+  early_stop:   true
+
+experiment_args:
+  d_models: [8, 16, 32, 64, 128]
+  seeds:    [42, 123, 456]

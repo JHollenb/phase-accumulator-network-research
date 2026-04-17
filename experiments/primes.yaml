@@ -1,0 +1,13 @@
+experiment: primes
+out_dir:    results/primes
+
+base:
+  k_freqs:      9
+  n_steps:      200000
+  weight_decay: 0.01
+  diversity_weight: 0.01
+  log_every:    500
+  early_stop:   true
+
+experiment_args:
+  primes: [43, 67, 89, 113, 127]

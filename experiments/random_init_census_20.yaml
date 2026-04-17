@@ -1,0 +1,22 @@
+# Random-init reliability at 20 seeds, K=9.
+# Replicates the freq_init=random arm of freq_init_ablation but with
+# 4x the sample size to nail down the "random is strictly better"
+# claim. Currently: 5/5 at random init, 4/5 at fourier init. 20-seed
+# run brings the random arm to the same sample size as slot_census.
+experiment: slot_census
+out_dir:    results/random_init_census_20
+
+base:
+  p:                113
+  k_freqs:          9
+  n_steps:          100000
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  freq_init:        random
+  log_every:        300
+  early_stop:       true
+  save_model:       true
+
+experiment_args:
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+          10, 11, 12, 13, 14, 15, 16, 17, 18, 19]

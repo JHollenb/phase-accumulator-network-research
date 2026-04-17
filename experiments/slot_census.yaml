@@ -1,0 +1,21 @@
+# Experiment A — slot activation census.
+# 20 seeds at K=9. Each seed produces 2*9=18 learned frequencies (two encoders,
+# 9 slots each). For each, check whether it converged to within SIFP-16
+# quantization error of k*2pi/P for some k. Output: slot_census.png, a heatmap
+# of (seed, encoder) x slot showing who found what. Directly answers Section 5.1.
+experiment: slot_census
+out_dir:    results/slot_census
+
+base:
+  p:                113
+  k_freqs:          9
+  n_steps:          100000
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  log_every:        500
+  early_stop:       true
+  save_model:       true
+
+experiment_args:
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+          10, 11, 12, 13, 14, 15, 16, 17, 18, 19]

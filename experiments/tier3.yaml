@@ -1,0 +1,20 @@
+# Tier 3 — full mechanistic logging.
+# Produces:
+#   freq_trajectories.png — learned freqs per k vs step, with Fourier targets
+#   ablations.png         — zero-component interventions
+#   slot_census.png       — which slots converged to the Fourier basis
+#   checkpoints.csv       — one row per (step, encoder, k)
+experiment: tier3
+out_dir:    results/tier3
+
+base:
+  p:                113
+  k_freqs:          9
+  n_steps:          100000
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  seed:             42
+  log_every:        500
+  early_stop:       false
+  record_checkpoints: true
+  save_model:       true

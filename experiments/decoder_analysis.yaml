@@ -1,0 +1,30 @@
+# decoder_analysis — decompose the learned decoder against the Clock basis.
+#
+# For each seed, trains PAN and measures:
+#   * acc_learned          baseline val_acc with the learned decoder
+#   * acc_clock_only       val_acc after swapping in the pure Clock decoder
+#                          (best fit to the Clock basis)
+#   * clock_explained_frac fraction of decoder energy captured by Clock
+#   * residual spectrum    FFT magnitudes of learned - clock_fit
+#   * recovery curve       val_acc as we add top-residual frequencies
+#   * n_extras_for_1pct    how many extra frequencies needed to match learned
+#
+# This is the follow-up to decoder_swap. Where decoder_swap asked "does
+# Clock work as a decoder?" (answer: no), this asks "what's missing?"
+# and measures it quantitatively.
+experiment: decoder_analysis
+out_dir:    results/decoder_analysis
+
+base:
+  p:                113
+  k_freqs:          9
+  n_steps:          100000
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  log_every:        500
+  early_stop:       true
+  save_model:       true
+
+experiment_args:
+  seeds: [42, 123, 456, 789, 999]
+  max_extra_freqs: 20
