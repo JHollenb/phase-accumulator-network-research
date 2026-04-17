@@ -90,8 +90,28 @@ def _run_cfgs(
     return rep
 
 
+def build_pan_seed_cfgs(
+    base: RunConfig,
+    seeds: list[int],
+    label_prefix: str,
+    **overrides,
+) -> list[RunConfig]:
+    return [
+        base.with_overrides(
+            model_kind="pan",
+            seed=s,
+            weight_decay=0.01,
+            label=f"{label_prefix}-s{s}",
+            **overrides,
+        )
+        for s in seeds
+    ]
+
+
 class BaseExperiment(ABC):
     name: str
+    collect_ablations: bool = False
+    collect_slots: bool = False
 
     def __call__(self, base: RunConfig, out_dir: str, dry_run: bool = False, **exp_args):
         cfgs = self.build_configs(base, **exp_args)
@@ -121,7 +141,13 @@ class BaseExperiment(ABC):
         return None
 
     def handle_result(self, reporter, result, vx, vy, cfg: RunConfig, state):
-        reporter.add_run(result, val_x=vx, val_y=vy)
+        reporter.add_run(
+            result,
+            val_x=vx,
+            val_y=vy,
+            ablations=self.collect_ablations,
+            slots=self.collect_slots,
+        )
 
     def finalize(self, reporter: ExperimentReporter, state, out_dir: str):
         pass

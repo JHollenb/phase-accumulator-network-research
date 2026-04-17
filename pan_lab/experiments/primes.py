@@ -10,6 +10,7 @@ from pan_lab.plots import plot_sweep_reliability
 
 class PrimesExperiment(BaseExperiment):
     name = "primes"
+    collect_ablations = True
 
     def build_configs(self, base: RunConfig, primes: Optional[list[int]] = None, **_):
         primes = primes or [43, 67, 89, 113, 127]
@@ -22,9 +23,6 @@ class PrimesExperiment(BaseExperiment):
 
     def init_state(self, **kwargs):
         return {"base": kwargs["base"]}
-
-    def handle_result(self, reporter, result, vx, vy, cfg, state):
-        reporter.add_run(result, val_x=vx, val_y=vy, ablations=True)
 
     def finalize(self, reporter, state, out_dir):
         plot_sweep_reliability(

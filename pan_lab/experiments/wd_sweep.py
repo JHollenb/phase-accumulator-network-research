@@ -36,9 +36,6 @@ class WDSweepExperiment(BaseExperiment):
     def init_state(self, **kwargs):
         return {"k_freqs": kwargs["exp_args"].get("k_freqs", 9)}
 
-    def handle_result(self, reporter, result, vx, vy, cfg, state):
-        reporter.add_run(result, val_x=vx, val_y=vy, ablations=False)
-
     def finalize(self, reporter, state, out_dir):
         plot_sweep_reliability(
             reporter.runs_df(),
