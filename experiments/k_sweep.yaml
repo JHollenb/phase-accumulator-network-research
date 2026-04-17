@@ -12,8 +12,10 @@ base:
   save_model:       true
 
 grid:
-  k_freqs: [12, 13]
-  seed: [1, 2, 3]
+  k_freqs: [6, 7, 8, 9, 10]
+  seed: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+  # k_freqs: [12, 13]
+  # seed: [1, 2, 3]
   #k_freqs: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
   #seed: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 
@@ -21,6 +23,8 @@ options:
   ablations: false
 
 plots:
-  - {type: sweep_reliability, group_by: k_freqs,
-     filename: reliability.png, title: "K sweep  —  P=113"}
+  - {type: sweep_reliability, group_by: k_freqs, filename: reliability.png, title: "K sweep  —  P=113"}
   - {type: training_curves, title: "K sweep curves"}
+  - {type: metric_formation_curves, group_by: k_freqs, filename: metrics_formation_curves.png, title: "Metric Formation Curves"}
+  - {type: metric_peak_timescales, group_by: k_freqs, filename: metric_peak_timescales.png, title: "Metric Peak Timescales"}
+  - {type: metric_spectra, group_by: k_freqs, filename: metric_spectra.png, title: "Metric Formation metric_spectra"}

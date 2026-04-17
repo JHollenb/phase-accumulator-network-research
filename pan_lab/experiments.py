@@ -85,6 +85,7 @@ def _run_cfgs(
     hook_factory=None, ablations=True, slots=False,
     metrics=True, metrics_expensive_every=5000,
     metrics_gate_decode_max_rows=4000,
+    metrics_logit_spectrum=False,
     metrics_logit_spectrum_classes=None,
 ):
     """
@@ -123,6 +124,7 @@ def _run_cfgs(
                 val_x=vx, val_y=vy,
                 expensive_every=metrics_expensive_every,
                 gate_decode_max_rows=metrics_gate_decode_max_rows,
+                logit_spectrum=metrics_logit_spectrum,
                 logit_spectrum_classes=metrics_logit_spectrum_classes,
             ))
         result = train(model, cfg, tx, ty, vx, vy, hooks=hooks, verbose=True)

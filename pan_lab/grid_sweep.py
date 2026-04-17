@@ -241,6 +241,7 @@ def run_grid_sweep(
         metrics                        = options.get("metrics", True),
         metrics_expensive_every        = options.get("metrics_expensive_every", 5000),
         metrics_gate_decode_max_rows   = options.get("metrics_gate_decode_max_rows", 4000),
+        metrics_logit_spectrum         = options.get("metrics_logit_spectrum", False),
         metrics_logit_spectrum_classes = options.get("metrics_logit_spectrum_classes", None),
     )
 

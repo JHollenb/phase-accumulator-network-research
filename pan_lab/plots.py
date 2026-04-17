@@ -30,8 +30,7 @@ DEFAULT_FORMATION_METRICS: List[str] = [
     "active_freq_count",              # M5
     "decoder_fourier_peak_mean",      # M8 decoder clock projection
     "gate_linear_acc",                # M6 linear decodability
-    "logit_spec_diag_frac_mean",      # M9 diag-power fraction
-    "logit_spec_peak_sparsity_mean",  # M9 top-5 bin share
+    "gate_decoder_gap",               # derived: M6 − M7.fp32_acc
     "sifp16_acc",                     # M7 quantized robustness
 ]
 
