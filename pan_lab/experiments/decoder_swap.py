@@ -7,18 +7,20 @@ import pandas as pd
 import torch
 
 from pan_lab.config import DEVICE, RunConfig
-from pan_lab.experiments.base import BaseExperiment, _train_cfg
+from pan_lab.experiments.base import BaseExperiment, _train_cfg, build_pan_seed_cfgs
 
 
 class DecoderSwapExperiment(BaseExperiment):
     name = "decoder_swap"
 
     def build_configs(self, base: RunConfig, seeds: Optional[list[int]] = None, **_):
-        seeds = seeds or [42, 123, 456]
-        return [
-            base.with_overrides(model_kind="pan", seed=s, weight_decay=0.01, label=f"swap-s{s}")
-            for s in seeds
-        ]
+        return build_pan_seed_cfgs(
+            base,
+            seeds=seeds,
+            default_seeds=[42, 123, 456],
+            overrides={"weight_decay": 0.01},
+            label_prefix="swap-",
+        )
 
     def init_state(self, **_):
         return {"swap_rows": []}
