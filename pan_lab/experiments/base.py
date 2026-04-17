@@ -9,6 +9,7 @@ from pan_lab.data import make_modular_dataset
 from pan_lab.hooks import CSVStreamLogger
 from pan_lab.models import make_model
 from pan_lab.reporting import ExperimentReporter, save_model_weights
+from pan_lab.experiments.plugins import run_analyzers, write_declared_plots, write_plugin_rows
 from pan_lab.trainer import train
 
 
@@ -120,14 +121,19 @@ class BaseExperiment(ABC):
             return ExperimentReporter(self.name, out_dir)
 
         reporter = ExperimentReporter(self.name, out_dir)
-        state = self.init_state(base=base, out_dir=out_dir, exp_args=exp_args)
+        state = self.init_state(base=base, out_dir=out_dir, exp_args=exp_args) or {}
+        analyzer_names = exp_args.get("analyses")
+        plot_specs = exp_args.get("plots")
 
         for cfg in cfgs:
             result, vx, vy = self.run_one(cfg, state)
             self.handle_result(reporter, result, vx, vy, cfg, state)
+            run_analyzers(analyzer_names, result, vx, vy, cfg, state)
 
         reporter.write_all()
         self.finalize(reporter, state, out_dir)
+        write_plugin_rows(state, out_dir)
+        write_declared_plots(plot_specs, reporter, state, out_dir)
         return reporter
 
     @abstractmethod

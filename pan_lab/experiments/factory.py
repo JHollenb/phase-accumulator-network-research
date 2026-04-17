@@ -7,12 +7,8 @@ from typing import Any, Callable
 
 from pan_lab.config import RunConfig
 from pan_lab.experiments.base import _print_plan, _train_cfg
+from pan_lab.experiments.plugins import run_analyzers, write_declared_plots, write_plugin_rows
 from pan_lab.hooks import CSVStreamLogger, CheckpointLogger
-from pan_lab.plots import (
-    plot_parameter_efficiency,
-    plot_sweep_reliability,
-    plot_training_curves,
-)
 from pan_lab.reporting import ExperimentReporter, save_model_weights
 
 
@@ -102,6 +98,8 @@ class FactoryBackedRunner:
         os.makedirs(out_dir, exist_ok=True)
         policy = self._policy(capture)
         hook_factory = self._hook_factory(policy, out_dir)
+        state: dict[str, Any] = {}
+        analyzer_names = analyses if analyses is not None else self.spec.default_analyses
 
         for cfg in cfgs:
             result, vx, vy = _train_cfg(cfg, hook_factory=hook_factory)
@@ -112,53 +110,15 @@ class FactoryBackedRunner:
                 ablations=policy.ablations and cfg.model_kind == "pan",
                 slots=policy.slots and cfg.model_kind == "pan",
             )
+            run_analyzers(analyzer_names, result, vx, vy, cfg, state)
             if cfg.save_model:
                 save_model_weights(result, out_dir)
 
-        for analyzer_name in (analyses if analyses is not None else self.spec.default_analyses):
-            analyzer = ANALYZER_REGISTRY.get(analyzer_name)
-            if analyzer is not None:
-                analyzer(rep, out_dir, cfgs)
-
-        for plot_spec in (plots if plots is not None else self.spec.default_plots):
-            write_plot(plot_spec, rep, out_dir, cfgs, base)
-
         rep.write_all()
+        write_plugin_rows(state, out_dir)
+        write_declared_plots(plots if plots is not None else self.spec.default_plots, rep, state, out_dir)
         rep.print_summary()
         return rep
-
-
-def write_plot(
-    plot_spec: dict[str, Any],
-    rep: ExperimentReporter,
-    out_dir: str,
-    cfgs: list[RunConfig],
-    base: RunConfig,
-) -> None:
-    plot_type = plot_spec.get("type")
-    out_name = plot_spec.get("filename") or f"{plot_type}.png"
-    out_path = os.path.join(out_dir, out_name)
-
-    if plot_type == "reliability":
-        plot_sweep_reliability(
-            rep.runs_df(),
-            group_by=plot_spec.get("group_by", "k_freqs"),
-            out_path=out_path,
-            title=plot_spec.get("title"),
-        )
-        return
-
-    if plot_type == "curves":
-        plot_training_curves(
-            rep.curves_df(),
-            rep.runs_df(),
-            out_path,
-            title=plot_spec.get("title", f"{base.p=} curves"),
-        )
-        return
-
-    if plot_type == "parameter_efficiency":
-        plot_parameter_efficiency(rep.runs_df(), out_path, title=plot_spec.get("title", "Parameter efficiency"))
 
 
 def _k_sweep_spec() -> ExperimentFactory:
@@ -220,8 +180,6 @@ FACTORY_SPECS: dict[str, Callable[[], ExperimentFactory]] = {
     "dw_sweep": _dw_sweep_spec,
     "k8_sweep": _k8_sweep_spec,
 }
-
-ANALYZER_REGISTRY: dict[str, Callable[[ExperimentReporter, str, list[RunConfig]], None]] = {}
 
 
 def can_run_with_factory(name: str) -> bool:
