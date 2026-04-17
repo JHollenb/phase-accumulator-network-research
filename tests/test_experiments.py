@@ -10,6 +10,7 @@ import yaml
 from pan_lab import RunConfig
 from pan_lab.experiments import (
     EXPERIMENT_REGISTRY,
+    ExperimentSpecValidationError,
     load_experiment_yaml,
     run_experiment,
     run_from_yaml,
@@ -149,3 +150,38 @@ def test_all_yaml_files_load_without_error():
         assert name in EXPERIMENT_REGISTRY, (
             f"{y.name}: references unknown experiment {name!r}")
         assert isinstance(base, RunConfig)
+
+
+def test_yaml_validation_fails_on_unknown_top_level_key(tmp_outdir):
+    p = tmp_outdir / "invalid_top_level.yaml"
+    p.write_text(
+        yaml.dump(
+            {
+                "schema_version": 2,
+                "experiment": "k_sweep",
+                "base": {"p": 11, "k_freqs": 3},
+                "grid": {"ks": [2], "seeds": [42]},
+                "extra": {"nope": True},
+            }
+        )
+    )
+    with pytest.raises(ExperimentSpecValidationError, match="Unknown top-level YAML keys"):
+        load_experiment_yaml(str(p))
+
+
+def test_yaml_validation_fails_on_unknown_plugin_names(tmp_outdir):
+    p = tmp_outdir / "invalid_plugins.yaml"
+    p.write_text(
+        yaml.dump(
+            {
+                "schema_version": 2,
+                "experiment": "k_sweep",
+                "base": {"p": 11, "k_freqs": 3},
+                "grid": {"ks": [2], "seeds": [42]},
+                "analyses": ["does_not_exist"],
+                "plots": [{"type": "nope_plot"}],
+            }
+        )
+    )
+    with pytest.raises(ExperimentSpecValidationError, match="Unknown analyzer plugin names"):
+        load_experiment_yaml(str(p))
