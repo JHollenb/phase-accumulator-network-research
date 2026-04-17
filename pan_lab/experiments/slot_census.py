@@ -4,25 +4,20 @@ import os
 from typing import Optional
 
 from pan_lab.config import RunConfig
-from pan_lab.experiments.base import BaseExperiment
+from pan_lab.experiments.base import BaseExperiment, build_pan_seed_cfgs
 from pan_lab.plots import plot_slot_census
 
 
 class SlotCensusExperiment(BaseExperiment):
     name = "slot_census"
+    collect_slots = True
 
     def build_configs(self, base: RunConfig, seeds: Optional[list[int]] = None, **_):
         seeds = seeds or list(range(20))
-        return [
-            base.with_overrides(model_kind="pan", seed=s, weight_decay=0.01, label=f"census-s{s}")
-            for s in seeds
-        ]
+        return build_pan_seed_cfgs(base, seeds, label_prefix="census")
 
     def init_state(self, **kwargs):
         return {"base": kwargs["base"]}
-
-    def handle_result(self, reporter, result, vx, vy, cfg, state):
-        reporter.add_run(result, val_x=vx, val_y=vy, ablations=False, slots=True)
 
     def finalize(self, reporter, state, out_dir):
         base = state["base"]

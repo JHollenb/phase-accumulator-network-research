@@ -15,6 +15,8 @@ from pan_lab.plots import (
 
 class Tier3Experiment(BaseExperiment):
     name = "tier3"
+    collect_ablations = True
+    collect_slots = True
 
     def build_configs(self, base: RunConfig, **_):
         return [
@@ -34,7 +36,7 @@ class Tier3Experiment(BaseExperiment):
         return _train_cfg(cfg, hook_factory=lambda _: [CheckpointLogger()])
 
     def handle_result(self, reporter, result, vx, vy, cfg, state):
-        reporter.add_run(result, val_x=vx, val_y=vy, ablations=True, slots=True)
+        super().handle_result(reporter, result, vx, vy, cfg, state)
 
     def finalize(self, reporter, state, out_dir):
         if reporter.checkpoints_df().empty:

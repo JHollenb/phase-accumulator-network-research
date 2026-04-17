@@ -8,6 +8,7 @@ from pan_lab.experiments.base import BaseExperiment
 
 class HeldOutPrimesExperiment(BaseExperiment):
     name = "held_out_primes"
+    collect_ablations = True
 
     def build_configs(self, base: RunConfig, primes: Optional[list[int]] = None, **_):
         primes = primes or [59, 71, 97]
@@ -17,6 +18,3 @@ class HeldOutPrimesExperiment(BaseExperiment):
             )
             for p in primes
         ]
-
-    def handle_result(self, reporter, result, vx, vy, cfg, state):
-        reporter.add_run(result, val_x=vx, val_y=vy, ablations=True)

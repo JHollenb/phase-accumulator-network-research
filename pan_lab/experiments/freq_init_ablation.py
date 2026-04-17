@@ -10,6 +10,7 @@ from pan_lab.plots import plot_sweep_reliability
 
 class FreqInitAblationExperiment(BaseExperiment):
     name = "freq_init_ablation"
+    collect_slots = True
 
     def build_configs(self, base: RunConfig, seeds: Optional[list[int]] = None, **_):
         seeds = seeds or [42, 123, 456, 789, 999]
@@ -26,9 +27,6 @@ class FreqInitAblationExperiment(BaseExperiment):
                     )
                 )
         return cfgs
-
-    def handle_result(self, reporter, result, vx, vy, cfg, state):
-        reporter.add_run(result, val_x=vx, val_y=vy, ablations=False, slots=True)
 
     def finalize(self, reporter, state, out_dir):
         plot_sweep_reliability(

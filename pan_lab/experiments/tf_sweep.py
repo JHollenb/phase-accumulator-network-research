@@ -38,9 +38,6 @@ class TFSweepExperiment(BaseExperiment):
                 )
         return cfgs
 
-    def handle_result(self, reporter, result, vx, vy, cfg, state):
-        reporter.add_run(result, val_x=vx, val_y=vy, ablations=False)
-
     def finalize(self, reporter, state, out_dir):
         plot_sweep_reliability(
             reporter.runs_df(),
