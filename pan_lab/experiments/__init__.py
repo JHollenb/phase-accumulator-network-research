@@ -10,7 +10,7 @@ import yaml
 from pan_lab.config import RunConfig
 from pan_lab.reporting import ExperimentReporter
 
-from .base import _print_plan, _run_cfgs
+from .base import _print_plan, _run_cfgs, as_experiment_runner
 from .compare import CompareExperiment
 from .decoder_analysis import DecoderAnalysisExperiment
 from .factory import build_factory_runner, can_run_with_factory
@@ -152,14 +152,7 @@ def _strict_validate_spec(spec: dict[str, Any]) -> None:
 
 
 def _effective_capture(name: str, exp_args: dict[str, Any]) -> dict[str, bool]:
-    capture = {"ablations": False, "slots": False, "checkpoints": False, "stream_curves": False}
-    if can_run_with_factory(name):
-        spec = build_factory_runner(name).spec
-        capture.update(spec.default_capture.__dict__)
-    else:
-        exp = EXPERIMENT_REGISTRY[name]
-        capture["ablations"] = bool(getattr(exp, "collect_ablations", False))
-        capture["slots"] = bool(getattr(exp, "collect_slots", False))
+    capture = _resolve_runner(name).default_capture()
     capture.update({k: bool(v) for k, v in (exp_args.get("capture") or {}).items() if k in capture})
     return capture
 
@@ -167,15 +160,15 @@ def _effective_capture(name: str, exp_args: dict[str, Any]) -> dict[str, bool]:
 def _expanded_cfgs(name: str, base: RunConfig, exp_args: dict[str, Any]) -> list[RunConfig]:
     clean_args = dict(exp_args)
     clean_args.pop("_schema_version", None)
-    if can_run_with_factory(name):
-        runner = build_factory_runner(name)
-        grid = {k: v for k, v in clean_args.items() if k not in {"capture", "analyses", "plots"}}
-        return runner.spec.expand_configs(base=base, grid=grid)
+    return _resolve_runner(name).expand_configs(base=base, **clean_args)
 
-    exp = EXPERIMENT_REGISTRY[name]
-    if hasattr(exp, "build_configs"):
-        return exp.build_configs(base=base, **clean_args)
-    return [base]
+
+def _resolve_runner(name: str):
+    if can_run_with_factory(name):
+        return build_factory_runner(name)
+    if name not in EXPERIMENT_REGISTRY:
+        raise KeyError(f"Unknown experiment: {name!r}. Available: {sorted(EXPERIMENT_REGISTRY)}")
+    return as_experiment_runner(name, EXPERIMENT_REGISTRY[name])
 
 
 def build_execution_manifest(name: str, base: RunConfig, out_dir: str, exp_args: dict[str, Any]) -> dict[str, Any]:
@@ -276,33 +269,12 @@ def run_experiment(
     dry_run: bool = False,
     **exp_args,
 ) -> ExperimentReporter:
-    schema_version = int(exp_args.get("_schema_version", 1))
     if dry_run:
         _print_dry_run_manifest(build_execution_manifest(name, base, out_dir, exp_args))
     exp_args = dict(exp_args)
     exp_args.pop("_schema_version", None)
-
-    if schema_version >= 2 and can_run_with_factory(name):
-        runner = build_factory_runner(name)
-        grid = {
-            k: v
-            for k, v in exp_args.items()
-            if k not in {"capture", "analyses", "plots"}
-        }
-        return runner.run(
-            base=base,
-            out_dir=out_dir,
-            dry_run=dry_run,
-            grid=grid,
-            capture=exp_args.get("capture"),
-            analyses=exp_args.get("analyses"),
-            plots=exp_args.get("plots"),
-        )
-
-    if name not in EXPERIMENT_REGISTRY:
-        raise KeyError(f"Unknown experiment: {name!r}. Available: {sorted(EXPERIMENT_REGISTRY)}")
-    fn = EXPERIMENT_REGISTRY[name]
-    return fn(base=base, out_dir=out_dir, dry_run=dry_run, **exp_args)
+    runner = _resolve_runner(name)
+    return runner.run(base=base, out_dir=out_dir, dry_run=dry_run, **exp_args)
 
 
 def run_from_yaml(path: str, force_dry_run: Optional[bool] = None):

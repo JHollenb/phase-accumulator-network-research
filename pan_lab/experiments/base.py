@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Protocol
 
 from pan_lab.config import DEVICE, RunConfig
 from pan_lab.data import make_modular_dataset
@@ -160,3 +160,68 @@ class BaseExperiment(ABC):
 
     def print_plan(self, cfgs):
         _print_plan(cfgs, self.name)
+
+
+class ExperimentRunner(Protocol):
+    """Minimal executable experiment interface shared across runner styles."""
+
+    name: str
+
+    def expand_configs(self, base: RunConfig, **exp_args) -> list[RunConfig]:
+        ...
+
+    def default_capture(self) -> dict[str, bool]:
+        ...
+
+    def run(self, base: RunConfig, out_dir: str, dry_run: bool = False, **exp_args) -> ExperimentReporter:
+        ...
+
+
+class BaseExperimentAdapter:
+    """Adapter exposing BaseExperiment through the ExperimentRunner interface."""
+
+    def __init__(self, experiment: BaseExperiment):
+        self._experiment = experiment
+        self.name = experiment.name
+
+    def expand_configs(self, base: RunConfig, **exp_args) -> list[RunConfig]:
+        return self._experiment.build_configs(base=base, **exp_args)
+
+    def default_capture(self) -> dict[str, bool]:
+        return {
+            "ablations": bool(getattr(self._experiment, "collect_ablations", False)),
+            "slots": bool(getattr(self._experiment, "collect_slots", False)),
+            "checkpoints": False,
+            "stream_curves": False,
+        }
+
+    def run(self, base: RunConfig, out_dir: str, dry_run: bool = False, **exp_args) -> ExperimentReporter:
+        return self._experiment(base=base, out_dir=out_dir, dry_run=dry_run, **exp_args)
+
+
+class CallableExperimentAdapter:
+    """Compatibility adapter for legacy callable entries in EXPERIMENT_REGISTRY."""
+
+    def __init__(self, name: str, fn: Callable[..., ExperimentReporter]):
+        self.name = name
+        self._fn = fn
+
+    def expand_configs(self, base: RunConfig, **_exp_args) -> list[RunConfig]:
+        return [base]
+
+    def default_capture(self) -> dict[str, bool]:
+        return {"ablations": False, "slots": False, "checkpoints": False, "stream_curves": False}
+
+    def run(self, base: RunConfig, out_dir: str, dry_run: bool = False, **exp_args) -> ExperimentReporter:
+        return self._fn(base=base, out_dir=out_dir, dry_run=dry_run, **exp_args)
+
+
+def as_experiment_runner(name: str, entry: Any) -> ExperimentRunner:
+    """Normalize registered experiment entries to the common runner interface."""
+    if hasattr(entry, "expand_configs") and hasattr(entry, "default_capture") and hasattr(entry, "run"):
+        return entry
+    if isinstance(entry, BaseExperiment):
+        return BaseExperimentAdapter(entry)
+    if callable(entry):
+        return CallableExperimentAdapter(name, entry)
+    raise TypeError(f"Unsupported experiment registry entry for {name!r}: {type(entry).__name__}")

@@ -43,3 +43,28 @@ def test_manifest_generation_snapshots_for_baseline_experiments():
         actual[yaml_path] = _snapshot_view(manifest)
 
     assert actual == expected
+
+
+def test_manifest_metadata_matches_for_factory_and_legacy_style_inputs(tmp_path):
+    from pan_lab import RunConfig
+
+    base = RunConfig.from_dict({"p": 31, "k_freqs": 5, "n_steps": 50, "seed": 7})
+    out_dir = str(tmp_path / "k_sweep")
+    legacy_like_args = {"ks": [2, 3], "seeds": [1, 2]}
+    v2_like_args = {
+        "_schema_version": 2,
+        "ks": [2, 3],
+        "seeds": [1, 2],
+        "capture": {"ablations": True},
+        "analyses": [],
+        "plots": [],
+    }
+
+    legacy_manifest = build_execution_manifest("k_sweep", base, out_dir, legacy_like_args)
+    v2_manifest = build_execution_manifest("k_sweep", base, out_dir, v2_like_args)
+
+    assert legacy_manifest["expanded_runs"] == v2_manifest["expanded_runs"]
+    assert legacy_manifest["capture"]["ablations"] is False
+    assert v2_manifest["capture"]["ablations"] is True
+    assert "ablations.csv" not in legacy_manifest["expected_outputs"]
+    assert "ablations.csv" in v2_manifest["expected_outputs"]

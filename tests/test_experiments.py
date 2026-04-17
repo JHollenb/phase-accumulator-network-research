@@ -11,6 +11,7 @@ from pan_lab import RunConfig
 from pan_lab.experiments import (
     EXPERIMENT_REGISTRY,
     ExperimentSpecValidationError,
+    build_execution_manifest,
     load_experiment_yaml,
     run_experiment,
     run_from_yaml,
@@ -128,6 +129,51 @@ def test_factory_backed_runner_for_v2_sweeps_dry_run(tmp_outdir, tiny_cfg):
         capture={},
     )
     assert len(rep._runs) == 0
+
+
+def test_factory_and_legacy_schema_paths_generate_identical_manifests(tmp_outdir, tiny_cfg):
+    v1_manifest = build_execution_manifest(
+        "k_sweep",
+        tiny_cfg,
+        str(tmp_outdir),
+        {"ks": [2, 3], "seeds": [0, 1]},
+    )
+    v2_manifest = build_execution_manifest(
+        "k_sweep",
+        tiny_cfg,
+        str(tmp_outdir),
+        {
+            "_schema_version": 2,
+            "ks": [2, 3],
+            "seeds": [0, 1],
+            "capture": {},
+            "analyses": [],
+            "plots": [],
+        },
+    )
+    assert v1_manifest["expanded_runs"] == v2_manifest["expanded_runs"]
+    assert v1_manifest["capture"] == v2_manifest["capture"]
+    assert v1_manifest["expected_outputs"] == v2_manifest["expected_outputs"]
+
+
+def test_callable_registry_entry_uses_compatibility_adapter(tmp_outdir, tiny_cfg):
+    sentinel = {"called": False}
+
+    def _legacy_callable(base, out_dir, dry_run=False, **_):
+        sentinel["called"] = True
+        from pan_lab.reporting import ExperimentReporter
+
+        return ExperimentReporter("legacy_callable", out_dir)
+
+    EXPERIMENT_REGISTRY["legacy_callable"] = _legacy_callable
+    try:
+        rep = run_experiment("legacy_callable", tiny_cfg, str(tmp_outdir), dry_run=True)
+    finally:
+        del EXPERIMENT_REGISTRY["legacy_callable"]
+
+    assert sentinel["called"] is True
+    assert rep.name == "legacy_callable"
+
 
 def test_unknown_yaml_keys_are_ignored_not_fatal():
     cfg = RunConfig.from_dict(

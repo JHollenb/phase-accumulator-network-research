@@ -52,6 +52,19 @@ class ExperimentFactory:
 class FactoryBackedRunner:
     def __init__(self, spec: ExperimentFactory):
         self.spec = spec
+        self.name = spec.name
+
+    def expand_configs(self, base: RunConfig, **exp_args) -> list[RunConfig]:
+        grid = {k: v for k, v in exp_args.items() if k not in {"capture", "analyses", "plots"}}
+        return self.spec.expand_configs(base=base, grid=grid)
+
+    def default_capture(self) -> dict[str, bool]:
+        return {
+            "ablations": bool(self.spec.default_capture.ablations),
+            "slots": bool(self.spec.default_capture.slots),
+            "checkpoints": bool(self.spec.default_capture.checkpoints),
+            "stream_curves": bool(self.spec.default_capture.stream_curves),
+        }
 
     def _policy(self, capture: dict[str, Any] | None) -> ReporterPolicy:
         policy = ReporterPolicy(**self.spec.default_capture.__dict__)
@@ -82,13 +95,9 @@ class FactoryBackedRunner:
         base: RunConfig,
         out_dir: str,
         dry_run: bool = False,
-        grid: dict[str, Any] | None = None,
-        capture: dict[str, Any] | None = None,
-        analyses: list[str] | None = None,
-        plots: list[dict[str, Any]] | None = None,
-        **_,
+        **exp_args,
     ) -> ExperimentReporter:
-        cfgs = self.spec.expand_configs(base=base, grid=grid)
+        cfgs = self.expand_configs(base=base, **exp_args)
         rep = ExperimentReporter(name=self.spec.name, out_dir=out_dir)
 
         if dry_run:
@@ -96,9 +105,11 @@ class FactoryBackedRunner:
             return rep
 
         os.makedirs(out_dir, exist_ok=True)
-        policy = self._policy(capture)
+        policy = self._policy(exp_args.get("capture"))
         hook_factory = self._hook_factory(policy, out_dir)
         state: dict[str, Any] = {}
+        analyses = exp_args.get("analyses")
+        plots = exp_args.get("plots")
         analyzer_names = analyses if analyses is not None else self.spec.default_analyses
 
         for cfg in cfgs:
