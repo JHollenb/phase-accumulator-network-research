@@ -83,6 +83,34 @@ def test_run_from_yaml_dry_run(tmp_outdir):
     assert len(rep._runs) == 0
 
 
+def test_load_yaml_v2_schema_sections_map_to_exp_args(tmp_outdir):
+    spec = {
+        "schema_version": 2,
+        "experiment": "wd_sweep",
+        "out_dir": str(tmp_outdir),
+        "base": {"p": 11, "k_freqs": 3, "n_steps": 100, "seed": 42},
+        "grid": {"wds": [0.01, 0.02], "seeds": [1, 2], "k_freqs": 7},
+        "capture": {"ablations": True, "slots": False},
+        "analyses": ["decoder_swap", "sifp16_eval", "decoder_harmonics"],
+        "plots": [{"type": "reliability", "group_by": "weight_decay"}],
+        "experiment_args": {"legacy_only": 123},
+    }
+    p = tmp_outdir / "test_v2.yaml"
+    with open(p, "w") as f:
+        yaml.dump(spec, f)
+
+    name, base, out_dir, dry_run, args = load_experiment_yaml(str(p))
+    assert name == "wd_sweep"
+    assert isinstance(base, RunConfig)
+    assert args["wds"] == [0.01, 0.02]
+    assert args["seeds"] == [1, 2]
+    assert args["k_freqs"] == 7
+    assert args["capture"]["ablations"] is True
+    assert args["analyses"] == ["decoder_swap", "sifp16_eval", "decoder_harmonics"]
+    assert args["plots"][0]["type"] == "reliability"
+    assert args["legacy_only"] == 123
+
+
 def test_unknown_yaml_keys_are_ignored_not_fatal():
     cfg = RunConfig.from_dict(
         {"p": 11, "k_freqs": 3, "nonexistent_field": "whatever"})

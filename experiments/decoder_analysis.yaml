@@ -13,6 +13,7 @@
 # Clock work as a decoder?" (answer: no), this asks "what's missing?"
 # and measures it quantitatively.
 experiment: decoder_analysis
+schema_version: 2
 out_dir:    results/decoder_analysis
 
 base:
@@ -25,6 +26,22 @@ base:
   early_stop:       true
   save_model:       true
 
-experiment_args:
+grid:
   seeds: [42, 123, 456, 789, 999]
+capture:
+  ablations: false
+  slots: false
+  checkpoints: false
+  stream_curves: false
+analyses:
+  - decoder_swap
+  - sifp16_eval
+  - decoder_harmonics
+plots:
+  - type: decoder_analysis
+    group_by: seed
+    title: Decoder decomposition diagnostics
+    filename: decoder_analysis.png
+
+experiment_args:
   max_extra_freqs: 20
