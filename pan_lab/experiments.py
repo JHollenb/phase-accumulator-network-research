@@ -676,10 +676,6 @@ def analyze_harmonics(pan_model, val_x: torch.Tensor, val_y: torch.Tensor,
     channel frequency. If val_acc using the projection matches the
     learned baseline, the circuit is Clock-plus-harmonics.
     """
-    # from decoder_analysis import (
-    #     _channel_effective_frequency, _build_clock_basis,
-    #     _project_onto_basis, _evaluate_decoder,
-    # )
 
     with torch.no_grad():
         W_mix     = pan_model.phase_mix.weight.detach().cpu().numpy()
@@ -808,38 +804,6 @@ def analyze_gate_space_upper_bound(pan_model, val_x, val_y, p: int) -> dict:
         "learned_acc":       float(learned_acc),
         "gap_from_optimal":  float(learned_acc - lr_acc),
     }
-
-# ═══════════════════════════════════════════════════════════════════════
-# Use in the experiment (paste into exp_decoder_analysis after the
-# basis expansion loop):
-# ═══════════════════════════════════════════════════════════════════════
-_INTEGRATION_SNIPPET = """
-        # ── 5. Harmonic fit ──
-        harm = analyze_harmonics(pan, vx, vy, harmonic_order=4)
-        print(f"  [{cfg.display_id()}] harmonic fit:")
-        for key, v in sorted(harm["harmonic_fits"].items()):
-            print(f"    {key}: acc={v['acc']:.3f}  "
-                  f"explained={v['explained_frac']:.3f}  "
-                  f"basis_cols={v['n_basis_cols']}")
-        clock = harm["clock_only"]
-        print(f"    Clock-only (H=1): acc={clock['acc']:.3f}  "
-              f"explained={clock['explained_frac']:.3f}")
-
-        # ── 6. Gate-space upper bound ──
-        gate_ub = analyze_gate_space_upper_bound(pan, vx, vy, p=cfg.p)
-        print(f"  [{cfg.display_id()}] optimal linear decoder on gates: "
-              f"{gate_ub['gate_optimal_acc']:.3f}  "
-              f"(learned: {gate_ub['learned_acc']:.3f}, "
-              f"gap: {gate_ub['gap']:+.3f})")
-
-        # Add to summary row:
-        # summary_rows[-1].update({
-        #     "harmonic_H2_acc":  harm["harmonic_fits"].get("H=2",{}).get("acc"),
-        #     "harmonic_H3_acc":  harm["harmonic_fits"].get("H=3",{}).get("acc"),
-        #     "harmonic_H4_acc":  harm["harmonic_fits"].get("H=4",{}).get("acc"),
-        #     "gate_optimal_acc": gate_ub["gate_optimal_acc"],
-        # })
-"""
 
 def _channel_effective_frequency(W_mix: np.ndarray,
                                   enc0_freq: np.ndarray,
