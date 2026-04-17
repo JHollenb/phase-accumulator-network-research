@@ -83,21 +83,6 @@ def _print_plan(cfgs: List[RunConfig], name: str) -> None:
     print(f"  total planned steps: {total_steps:,}")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PATCH 2  —  pan_lab/experiments.py
-#
-# Inside the `_run_cfgs` function, after the `rep.add_run(...)` call and
-# before the `rep.write_all()` call, add:
-#
-#     if cfg.save_model:
-#         save_model_weights(result, out_dir)
-#
-# And at the top of the file, add to the imports:
-#
-#     from pan_lab.reporting import ExperimentReporter, save_model_weights
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 def _run_cfgs(
     cfgs, name, out_dir, dry_run,
     hook_factory=None, ablations=True, slots=False,

@@ -11,10 +11,10 @@
         tf_sweep paper clean
 
 install:
-	pip install -e .
+	v run pip install -e .
 
 test:
-	pytest
+	uv run pytest
 
 # Dry-run every YAML to verify plans look right without training
 plan:
