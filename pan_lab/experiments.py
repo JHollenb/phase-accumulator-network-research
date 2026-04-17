@@ -83,6 +83,8 @@ def _print_plan(cfgs: List[RunConfig], name: str) -> None:
 def _run_cfgs(
     cfgs, name, out_dir, dry_run,
     hook_factory=None, ablations=True, slots=False,
+    metrics=True, metrics_expensive_every=5000,
+    metrics_gate_decode_max_rows=4000,
 ):
     """
     Shared engine for every registered experiment: take a list of
@@ -114,6 +116,13 @@ def _run_cfgs(
         model  = make_model(cfg).to(DEVICE)
         hooks  = list(hook_factory(cfg)) if hook_factory else []
         hooks.append(CSVStreamLogger(stream_path, run_id=cfg.display_id()))
+        if metrics and cfg.model_kind == "pan":
+            from pan_lab.metrics import MetricsLogger
+            hooks.append(MetricsLogger(
+                val_x=vx, val_y=vy,
+                expensive_every=metrics_expensive_every,
+                gate_decode_max_rows=metrics_gate_decode_max_rows,
+            ))
         result = train(model, cfg, tx, ty, vx, vy, hooks=hooks, verbose=True)
         rep.add_run(
             result, val_x=vx, val_y=vy,

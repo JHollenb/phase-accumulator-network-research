@@ -16,6 +16,8 @@ the hardware claim is vindicated.
 """
 from __future__ import annotations
 
+import contextlib
+
 import torch
 
 from pan_lab.config import PHASE_SCALE, PHASE_SCALE_F, TWO_PI
@@ -67,3 +69,30 @@ def apply_sifp16_to_pan(pan_model) -> None:
 
             m.forward = wrapped    # type: ignore[assignment]
     pan_model._sifp16_applied = True
+
+
+@contextlib.contextmanager
+def sifp16_context(pan_model):
+    """
+    Temporarily route PAN phase outputs through SIFP-16 quantization.
+    Unlike `apply_sifp16_to_pan`, this reverses the monkey-patch on exit
+    so the live model is unchanged — which is what instrumentation (M7)
+    needs.
+    """
+    from pan_lab.models.pan import PhaseEncoder, PhaseMixingLayer
+
+    patched = []
+    try:
+        for m in pan_model.modules():
+            if isinstance(m, (PhaseEncoder, PhaseMixingLayer)):
+                orig = m.forward
+                patched.append((m, orig))
+
+                def wrapped(x, _f=orig):
+                    return quantize_phase_sifp16(_f(x))
+
+                m.forward = wrapped    # type: ignore[assignment]
+        yield pan_model
+    finally:
+        for m, orig in patched:
+            m.forward = orig           # type: ignore[assignment]

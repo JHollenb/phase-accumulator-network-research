@@ -50,6 +50,10 @@ class TrainHistory:
     fourier_conc_steps:  list = field(default_factory=list)
     fourier_conc_values: list = field(default_factory=list)
 
+    # Per-eval instrumentation rows — populated by MetricsLogger.
+    # Each row is a flat dict: {step, enc0_snap_mean, ..., gate_linear_acc, ...}.
+    metrics_rows: list = field(default_factory=list)
+
     # Internal: start time of the run (used by CSVStreamLogger).
     _t0: Optional[float] = None
 

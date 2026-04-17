@@ -205,6 +205,17 @@ class PhaseAccumulatorNetwork(nn.Module):
         concat = torch.cat(phases, dim=-1)
         return self.phase_mix(concat)
 
+    def get_gates(self, inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Return the post-gate activations (B, K). Useful for mechanistic
+        probes (e.g. gate linear-decodability) that need the tensor just
+        before the decoder.
+        """
+        phases = [enc(inputs[:, i]) for i, enc in enumerate(self.encoders)]
+        concat = torch.cat(phases, dim=-1)
+        mixed  = self.phase_mix(concat)
+        return self.phase_gate(mixed)
+
     # ── Introspection ──────────────────────────────────────────────────────
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)

@@ -232,6 +232,9 @@ def run_grid_sweep(
         hook_factory = hook_factory,
         ablations    = options.get("ablations", True),
         slots        = options.get("slots",     False),
+        metrics                      = options.get("metrics", True),
+        metrics_expensive_every      = options.get("metrics_expensive_every", 5000),
+        metrics_gate_decode_max_rows = options.get("metrics_gate_decode_max_rows", 4000),
     )
 
     if not dry_run and plots:

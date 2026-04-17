@@ -95,6 +95,16 @@ def curve_rows(result: TrainResult) -> Iterable[dict]:
         }
 
 
+def metrics_rows(result: TrainResult) -> Iterable[dict]:
+    """
+    Long-format per-eval metrics (one row per eval per run). Populated
+    by `pan_lab.metrics.MetricsLogger`; empty for non-PAN runs.
+    """
+    run_id = result.cfg.display_id()
+    for row in result.history.metrics_rows:
+        yield {"run_id": run_id, **row}
+
+
 def checkpoint_rows(result: TrainResult) -> Iterable[dict]:
     """
     Long-format frequency checkpoints: one row per
@@ -143,6 +153,7 @@ class ExperimentReporter:
         self._checkpoints: List[dict] = []
         self._ablations:   List[dict] = []
         self._slots:       List[dict] = []
+        self._metrics:     List[dict] = []
 
         self._provenance: Optional[dict] = None
 
@@ -158,6 +169,7 @@ class ExperimentReporter:
         self._runs.append(run_row(result, experiment=self.name))
         self._curves.extend(curve_rows(result))
         self._checkpoints.extend(checkpoint_rows(result))
+        self._metrics.extend(metrics_rows(result))
 
         if self._provenance is None:
             self._provenance = result.provenance
@@ -183,6 +195,7 @@ class ExperimentReporter:
     def checkpoints_df(self) -> pd.DataFrame: return pd.DataFrame(self._checkpoints)
     def ablations_df(self)   -> pd.DataFrame: return pd.DataFrame(self._ablations)
     def slots_df(self)       -> pd.DataFrame: return pd.DataFrame(self._slots)
+    def metrics_df(self)     -> pd.DataFrame: return pd.DataFrame(self._metrics)
 
     # ──────────────────────────────────────────────────────────────
     def write_all(self) -> dict:
@@ -204,6 +217,7 @@ class ExperimentReporter:
         _w(self.checkpoints_df(), "checkpoints.csv")
         _w(self.ablations_df(),   "ablations.csv")
         _w(self.slots_df(),       "slots.csv")
+        _w(self.metrics_df(),     "metrics.csv")
 
         manifest = {
             "experiment":  self.name,
