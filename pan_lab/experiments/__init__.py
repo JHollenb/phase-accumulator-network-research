@@ -11,6 +11,7 @@ from pan_lab.reporting import ExperimentReporter
 from .base import _print_plan, _run_cfgs
 from .compare import CompareExperiment
 from .decoder_analysis import DecoderAnalysisExperiment
+from .factory import build_factory_runner, can_run_with_factory
 from .decoder_swap import DecoderSwapExperiment
 from .dw_sweep import DWSweepExperiment
 from .freq_init_ablation import FreqInitAblationExperiment
@@ -67,6 +68,7 @@ def _normalize_experiment_args(spec: dict[str, Any]) -> dict[str, Any]:
     exp_args = dict(spec.get("experiment_args", {}) or {})
 
     schema_version = int(spec.get("schema_version", 1))
+    exp_args["_schema_version"] = schema_version
     if schema_version >= 2:
         grid = spec.get("grid", {}) or {}
         capture = spec.get("capture", {}) or {}
@@ -104,6 +106,25 @@ def run_experiment(
     dry_run: bool = False,
     **exp_args,
 ) -> ExperimentReporter:
+    schema_version = int(exp_args.pop("_schema_version", 1))
+
+    if schema_version >= 2 and can_run_with_factory(name):
+        runner = build_factory_runner(name)
+        grid = {
+            k: v
+            for k, v in exp_args.items()
+            if k not in {"capture", "analyses", "plots"}
+        }
+        return runner.run(
+            base=base,
+            out_dir=out_dir,
+            dry_run=dry_run,
+            grid=grid,
+            capture=exp_args.get("capture"),
+            analyses=exp_args.get("analyses"),
+            plots=exp_args.get("plots"),
+        )
+
     if name not in EXPERIMENT_REGISTRY:
         raise KeyError(f"Unknown experiment: {name!r}. Available: {sorted(EXPERIMENT_REGISTRY)}")
     fn = EXPERIMENT_REGISTRY[name]
