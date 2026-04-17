@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 
 from pan_lab.config import RunConfig
-from pan_lab.experiments.base import BaseExperiment, _train_cfg
+from pan_lab.experiments.base import BaseExperiment, _train_cfg, build_pan_seed_cfgs
 from pan_lab.models.quantize import apply_sifp16_to_pan
 from pan_lab.reporting import ExperimentReporter
 
@@ -17,11 +17,13 @@ class SIFP16InferenceExperiment(BaseExperiment):
     name = "sifp16_inference"
 
     def build_configs(self, base: RunConfig, seeds: Optional[list[int]] = None, **_):
-        seeds = seeds or [42, 123, 456]
-        return [
-            base.with_overrides(model_kind="pan", seed=s, weight_decay=0.01, label=f"sifp-s{s}")
-            for s in seeds
-        ]
+        return build_pan_seed_cfgs(
+            base,
+            seeds=seeds,
+            default_seeds=[42, 123, 456],
+            overrides={"weight_decay": 0.01},
+            label_prefix="sifp-",
+        )
 
     def init_state(self, **_):
         return {"quant_rows": []}

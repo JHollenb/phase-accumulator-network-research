@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 from pan_lab.config import RunConfig
-from pan_lab.experiments.base import BaseExperiment
+from pan_lab.experiments.base import BaseExperiment, build_pan_seed_cfgs
 from pan_lab.plots import plot_slot_census
 
 
@@ -12,11 +12,13 @@ class SlotCensusExperiment(BaseExperiment):
     name = "slot_census"
 
     def build_configs(self, base: RunConfig, seeds: Optional[list[int]] = None, **_):
-        seeds = seeds or list(range(20))
-        return [
-            base.with_overrides(model_kind="pan", seed=s, weight_decay=0.01, label=f"census-s{s}")
-            for s in seeds
-        ]
+        return build_pan_seed_cfgs(
+            base,
+            seeds=seeds,
+            default_seeds=list(range(20)),
+            overrides={"weight_decay": 0.01},
+            label_prefix="census-",
+        )
 
     def init_state(self, **kwargs):
         return {"base": kwargs["base"]}

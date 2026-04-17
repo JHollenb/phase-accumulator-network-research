@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Mapping, Optional, Sequence
 
 from pan_lab.config import DEVICE, RunConfig
 from pan_lab.data import make_modular_dataset
@@ -10,6 +10,27 @@ from pan_lab.hooks import CSVStreamLogger
 from pan_lab.models import make_model
 from pan_lab.reporting import ExperimentReporter, save_model_weights
 from pan_lab.trainer import train
+
+
+def build_pan_seed_cfgs(
+    base: RunConfig,
+    seeds: Optional[Sequence[int]] = None,
+    *,
+    default_seeds: Optional[Sequence[int]] = None,
+    overrides: Optional[Mapping[str, Any]] = None,
+    label_template: str = "{prefix}s{seed}",
+    label_prefix: str = "",
+) -> list[RunConfig]:
+    resolved_seeds = list(seeds) if seeds is not None else list(default_seeds or [42, 123, 456])
+    base_overrides = {**dict(overrides or {}), "model_kind": "pan"}
+    return [
+        base.with_overrides(
+            **base_overrides,
+            seed=s,
+            label=label_template.format(prefix=label_prefix, seed=s, **base_overrides),
+        )
+        for s in resolved_seeds
+    ]
 
 
 def _move(tensors, device):
