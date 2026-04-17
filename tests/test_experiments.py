@@ -111,6 +111,23 @@ def test_load_yaml_v2_schema_sections_map_to_exp_args(tmp_outdir):
     assert args["legacy_only"] == 123
 
 
+
+
+def test_factory_backed_runner_for_v2_sweeps_dry_run(tmp_outdir, tiny_cfg):
+    rep = run_experiment(
+        "k_sweep",
+        tiny_cfg,
+        str(tmp_outdir),
+        dry_run=True,
+        _schema_version=2,
+        ks=[2, 3],
+        seeds=[0, 1],
+        plots=[],
+        analyses=[],
+        capture={},
+    )
+    assert len(rep._runs) == 0
+
 def test_unknown_yaml_keys_are_ignored_not_fatal():
     cfg = RunConfig.from_dict(
         {"p": 11, "k_freqs": 3, "nonexistent_field": "whatever"})
