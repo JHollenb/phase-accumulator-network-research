@@ -121,7 +121,11 @@ pan_lab/
 │   ├── analysis.py        ablations, freq errors, slot census
 │   ├── reporting.py       ExperimentReporter, pandas aggregation, CSV
 │   ├── plots.py           matplotlib figures (consume DataFrames only)
-│   ├── experiments.py     EXPERIMENT_REGISTRY + YAML loader
+│   ├── experiments/
+│   │   ├── __init__.py    EXPERIMENT_REGISTRY + YAML loader + dispatch
+│   │   ├── base.py        BaseExperiment + shared run helpers
+│   │   ├── compare.py     one experiment per file (example)
+│   │   └── ...            other experiment modules
 │   └── cli.py             python -m pan_lab entry
 ├── experiments/           15 YAML specs
 ├── tests/                 55 pytest tests, ~25s on CPU
@@ -151,22 +155,43 @@ comments-as-fields in YAML for future readers.
 
 ## Adding a new experiment
 
-Write the function, register it, write the YAML. That's it.
+Create one module per experiment under `pan_lab/experiments/`, define a
+`BaseExperiment` subclass, import it in `pan_lab/experiments/__init__.py`,
+and add it to `_register_default_experiments()`.
 
 ```python
-# in pan_lab/experiments.py
-@register("my_experiment")
-def exp_my_experiment(base, out_dir, dry_run=False,
-                      seeds=None, **_):
-    seeds = seeds or [42, 123, 456]
-    cfgs = [base.with_overrides(seed=s, label=f"my-s{s}")
-            for s in seeds]
-    rep = _run_cfgs(cfgs, "my_experiment", out_dir, dry_run,
-                    ablations=True)
-    if not dry_run:
-        # any extra plotting here
+# pan_lab/experiments/my_experiment.py
+from pan_lab.config import RunConfig
+from pan_lab.experiments.base import BaseExperiment
+
+class MyExperiment(BaseExperiment):
+    name = "my_experiment"
+
+    def build_configs(self, base: RunConfig, seeds=None, **_):
+        seeds = seeds or [42, 123, 456]
+        return [
+            base.with_overrides(seed=s, label=f"my-s{s}")
+            for s in seeds
+        ]
+
+    def handle_result(self, reporter, result, vx, vy, cfg, state):
+        reporter.add_run(result, val_x=vx, val_y=vy, ablations=True)
+
+    def finalize(self, reporter, state, out_dir):
+        # optional extra CSVs/plots
         pass
-    return rep
+```
+
+```python
+# pan_lab/experiments/__init__.py
+from .my_experiment import MyExperiment
+
+def _register_default_experiments() -> None:
+    for exp in [
+        ...,
+        MyExperiment(),
+    ]:
+        EXPERIMENT_REGISTRY[exp.name] = exp
 ```
 
 ```
