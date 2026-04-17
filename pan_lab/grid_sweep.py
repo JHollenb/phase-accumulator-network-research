@@ -232,12 +232,42 @@ def run_grid_sweep(
         hook_factory = hook_factory,
         ablations    = options.get("ablations", True),
         slots        = options.get("slots",     False),
-        metrics                      = options.get("metrics", True),
-        metrics_expensive_every      = options.get("metrics_expensive_every", 5000),
-        metrics_gate_decode_max_rows = options.get("metrics_gate_decode_max_rows", 4000),
+        metrics                        = options.get("metrics", True),
+        metrics_expensive_every        = options.get("metrics_expensive_every", 5000),
+        metrics_gate_decode_max_rows   = options.get("metrics_gate_decode_max_rows", 4000),
+        metrics_logit_spectrum_classes = options.get("metrics_logit_spectrum_classes", None),
     )
+
+    if not dry_run and options.get("metrics_spectra", True):
+        _write_spectra(rep, out_dir)
 
     if not dry_run and plots:
         _render_plots(plots, rep, out_dir)
 
     return rep
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Post-hoc spectra writer
+# ─────────────────────────────────────────────────────────────────────────────
+def _write_spectra(rep, out_dir: str) -> None:
+    """
+    Compute per-(run, metric) DFTs of the metrics time series and write
+    `metrics_spectra.csv` (long spectrum) + `metrics_peaks.csv` (one row
+    per run/metric). No-op when there are no PAN runs in the sweep.
+    """
+    from pan_lab.training_dynamics import (
+        compute_metrics_spectra, summarize_metrics_spectra,
+    )
+    metrics_df = rep.metrics_df()
+    if metrics_df.empty:
+        return
+    spectra_df = compute_metrics_spectra(metrics_df)
+    if spectra_df.empty:
+        return
+    sp = os.path.join(out_dir, "metrics_spectra.csv")
+    pk = os.path.join(out_dir, "metrics_peaks.csv")
+    spectra_df.to_csv(sp, index=False)
+    summarize_metrics_spectra(spectra_df).to_csv(pk, index=False)
+    print(f"  [spectra] wrote metrics_spectra.csv ({len(spectra_df)} rows) "
+          f"+ metrics_peaks.csv")
