@@ -220,3 +220,33 @@ def plot_slots(reporter, _state, out_dir: str, plot_spec: dict[str, Any]) -> Non
         os.path.join(out_dir, plot_spec.get("filename") or "slot_census.png"),
         title=plot_spec.get("title", "Frequency-slot activation census"),
     )
+
+
+@register_plot("decoder_analysis")
+def plot_decoder_analysis_summary(reporter, state, out_dir: str, plot_spec: dict[str, Any]) -> None:
+    rows = state.get("summary_rows") if isinstance(state, dict) else None
+    if not rows:
+        return
+
+    import matplotlib.pyplot as plt
+
+    df = pd.DataFrame(rows)
+    if df.empty or "seed" not in df.columns:
+        return
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    x = range(len(df))
+    ax.plot(x, df["acc_learned"], marker="o", label="learned decoder")
+    if "acc_clock_only" in df.columns:
+        ax.plot(x, df["acc_clock_only"], marker="o", label="clock-only decoder")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels([str(s) for s in df["seed"]])
+    ax.set_ylim(0.0, 1.02)
+    ax.set_xlabel("seed")
+    ax.set_ylabel("validation accuracy")
+    ax.set_title(plot_spec.get("title", "Decoder analysis summary"))
+    ax.grid(alpha=0.25)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, plot_spec.get("filename") or "decoder_analysis.png"), dpi=140)
+    plt.close(fig)

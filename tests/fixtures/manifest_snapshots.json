@@ -1,0 +1,118 @@
+{
+  "experiments/decoder_analysis.yaml": {
+    "analyses": [
+      "decoder_harmonics",
+      "decoder_swap",
+      "sifp16_eval"
+    ],
+    "capture": {
+      "ablations": false,
+      "checkpoints": false,
+      "slots": false,
+      "stream_curves": false
+    },
+    "expected_outputs": [
+      "curves.csv",
+      "decoder_analysis.csv",
+      "decoder_analysis.png",
+      "decoder_harmonics.csv",
+      "decoder_recovery_curve.csv",
+      "decoder_residual_spectrum.csv",
+      "decoder_swap.csv",
+      "manifest.json",
+      "model_<run_id>.pt",
+      "runs.csv",
+      "sifp16_eval.csv"
+    ],
+    "experiment": "decoder_analysis",
+    "out_dir": "results/decoder_analysis",
+    "plots": [
+      {
+        "filename": "decoder_analysis.png",
+        "group_by": "seed",
+        "title": "Decoder decomposition diagnostics",
+        "type": "decoder_analysis"
+      }
+    ],
+    "run_count": 5,
+    "run_preview": [
+      {
+        "k_freqs": 9,
+        "label": "danal-s42",
+        "run_id": "danal-s42-c1b3add28b",
+        "save_model": true,
+        "seed": 42
+      },
+      {
+        "k_freqs": 9,
+        "label": "danal-s123",
+        "run_id": "danal-s123-8fb664f4af",
+        "save_model": true,
+        "seed": 123
+      },
+      {
+        "k_freqs": 9,
+        "label": "danal-s456",
+        "run_id": "danal-s456-e42a742fbe",
+        "save_model": true,
+        "seed": 456
+      },
+      {
+        "k_freqs": 9,
+        "label": "danal-s999",
+        "run_id": "danal-s999-50e10c3eae",
+        "save_model": true,
+        "seed": 999
+      }
+    ]
+  },
+  "experiments/k_sweep.yaml": {
+    "analyses": [],
+    "capture": {
+      "ablations": false,
+      "checkpoints": false,
+      "slots": false,
+      "stream_curves": false
+    },
+    "expected_outputs": [
+      "curves.csv",
+      "manifest.json",
+      "model_<run_id>.pt",
+      "runs.csv"
+    ],
+    "experiment": "k_sweep",
+    "out_dir": "results/k_sweep",
+    "plots": [],
+    "run_count": 150,
+    "run_preview": [
+      {
+        "k_freqs": 1,
+        "label": "K1-s42",
+        "run_id": "K1-s42-c26730a6e8",
+        "save_model": true,
+        "seed": 42
+      },
+      {
+        "k_freqs": 1,
+        "label": "K1-s123",
+        "run_id": "K1-s123-5c4a19b14c",
+        "save_model": true,
+        "seed": 123
+      },
+      {
+        "k_freqs": 1,
+        "label": "K1-s299",
+        "run_id": "K1-s299-e8157861a4",
+        "save_model": true,
+        "seed": 299
+      },
+      {
+        "k_freqs": 15,
+        "label": "K15-s10101",
+        "run_id": "K15-s10101-9eba0bcbe9",
+        "save_model": true,
+        "seed": 10101
+      }
+    ]
+  }
+}
