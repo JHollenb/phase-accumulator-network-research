@@ -3,7 +3,7 @@
 # 9 slots each). For each, check whether it converged to within SIFP-16
 # quantization error of k*2pi/P for some k. Output: slot_census.png, a heatmap
 # of (seed, encoder) x slot showing who found what. Directly answers Section 5.1.
-experiment: slot_census
+experiment: grid_sweep
 out_dir:    results/slot_census
 
 base:
@@ -16,6 +16,13 @@ base:
   early_stop:       true
   save_model:       true
 
-experiment_args:
-  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-          10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+grid:
+  seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+
+options:
+  ablations: false
+  slots:     true
+
+plots:
+  - {type: slot_census, title: "Slot census  —  P=113  K=9"}

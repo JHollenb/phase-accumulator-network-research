@@ -1,15 +1,15 @@
 # Held-out primes never used in development.
 # Reviewer-facing: answers "were the test primes cherry-picked?"
-experiment: held_out_primes
+experiment: grid_sweep
 out_dir:    results/held_out_primes
 
 base:
-  k_freqs:      9
-  n_steps:      200000
-  weight_decay: 0.01
+  k_freqs:          9
+  n_steps:          200000
+  weight_decay:     0.01
   diversity_weight: 0.01
-  log_every:    500
-  early_stop:   true
+  log_every:        500
+  early_stop:       true
 
-experiment_args:
-  primes: [59, 71, 97]
+grid:
+  p: [59, 71, 97]

@@ -1,31 +1,38 @@
 """
-pan_lab.experiments — named experiments, driven by YAML configs.
+pan_lab.experiments — registered experiments, driven by YAML configs.
 
-Each experiment is a function that receives (base_cfg, out_dir, dry_run)
-and returns an ExperimentReporter. The experiment function is responsible
-for:
-  1. Enumerating all sub-run configs
-  2. Training each (unless dry_run)
-  3. Collecting results into the reporter
-  4. Generating plots from the CSVs the reporter writes
+Most experiments are *grid sweeps* — they enumerate a Cartesian product of
+(parameter, seed), train each, and plot a few figures. All of those go
+through the single `grid_sweep` entry (see pan_lab.grid_sweep), so adding
+a new sweep is a YAML file, not Python.
 
-Experiments are registered in EXPERIMENT_REGISTRY by name. YAML configs
-supply the base RunConfig and override any experiment-specific knobs.
+Three experiments remain as bespoke functions because they do custom
+post-training analysis that doesn't fit a grid:
 
-YAML schema:
+    sifp16_inference   — train a PAN, then eval with SIFP-16 fake-quant
+    decoder_swap       — train a PAN, then swap in a theoretical Fourier
+                         decoder and measure the accuracy delta
+    decoder_analysis   — train a PAN, then decompose the learned decoder
+                         onto a Clock + harmonic basis
 
-    experiment: k8_sweep        # name in EXPERIMENT_REGISTRY
-    out_dir:    results/k8
-    dry_run:    false
+YAML schema (used by grid_sweep):
+
+    experiment: grid_sweep
+    out_dir:    results/k8_sweep
     base:
       p: 113
+      k_freqs: 8
+      model_kind: pan
       n_steps: 200000
       weight_decay: 0.01
-      ...
-    experiment_args:            # experiment-specific overrides (optional)
-      seeds: [42, 123, 456, ...]
-
-Add a new experiment: write a function, register it. That's it.
+    grid:                       # dict → Cartesian product; or list-of-dicts
+      seed: [42, 123, 456, ...]
+    options:
+      ablations: false
+      slots:     false
+      hooks:     []             # e.g. [checkpoint_logger]
+    plots:
+      - {type: training_curves, title: "K=8 — all seeds"}
 """
 from __future__ import annotations
 
@@ -37,23 +44,13 @@ import torch
 import yaml
 import pandas as pd
 
-from pan_lab.analysis   import slot_activation_census
 from pan_lab.config     import DEVICE, RunConfig, TWO_PI
 from pan_lab.data       import make_modular_dataset
-from pan_lab.hooks      import CheckpointLogger, CSVStreamLogger
+from pan_lab.hooks      import CSVStreamLogger
 from pan_lab.models     import make_model
 from pan_lab.models.quantize import apply_sifp16_to_pan
-from pan_lab.plots      import (
-    plot_ablation_bars,
-    plot_freq_err_trajectories,
-    plot_freq_trajectories,
-    plot_parameter_efficiency,
-    plot_slot_census,
-    plot_sweep_reliability,
-    plot_training_curves,
-)
 from pan_lab.reporting import ExperimentReporter, save_model_weights
-from pan_lab.trainer    import train, TrainResult
+from pan_lab.trainer    import train
 
 EXPERIMENT_REGISTRY: Dict[str, Callable] = {}
 
@@ -88,22 +85,21 @@ def _run_cfgs(
     hook_factory=None, ablations=True, slots=False,
 ):
     """
-    Reference implementation of the patched _run_cfgs body. Copy the
-    `save_model` check into the real one at the indicated line.
-    """
-    import os
-    from pan_lab.config    import DEVICE
-    from pan_lab.data      import make_modular_dataset
-    from pan_lab.hooks     import CSVStreamLogger
-    from pan_lab.models    import make_model
-    from pan_lab.reporting import ExperimentReporter, save_model_weights
-    from pan_lab.trainer   import train
+    Shared engine for every registered experiment: take a list of
+    RunConfigs, train each, and collect results into one ExperimentReporter.
 
+    Dry-runs print the plan and return an empty reporter. Otherwise each
+    cfg: builds its dataset, constructs the model, attaches any hooks
+    requested by `hook_factory(cfg)` plus a CSVStreamLogger, trains, and
+    adds the result (with optional ablations/slots/save_model) to the
+    reporter. At the end, the reporter writes all CSVs and prints a
+    summary.
+    """
     rep = ExperimentReporter(name=name, out_dir=out_dir)
     os.makedirs(out_dir, exist_ok=True)
 
     if dry_run:
-        # _print_plan(cfgs, name)
+        _print_plan(cfgs, name)
         return rep
 
     stream_path = os.path.join(out_dir, "curves_stream.csv")
@@ -138,245 +134,12 @@ def _run_cfgs(
 # EXPERIMENT DEFINITIONS
 # ═════════════════════════════════════════════════════════════════════════════
 
-@register("compare")
-def exp_compare(base: RunConfig, out_dir: str,
-                dry_run: bool = False, **_) -> ExperimentReporter:
-    """PAN vs transformer head-to-head, one seed each."""
-    pan_cfg = base.with_overrides(model_kind="pan", label="pan",
-                                   weight_decay=0.01)
-    tf_cfg  = base.with_overrides(model_kind="transformer", label="tf",
-                                   weight_decay=1.0)
-    rep = _run_cfgs([pan_cfg, tf_cfg], "compare", out_dir, dry_run,
-                     ablations=True)
-    if not dry_run:
-        plot_training_curves(rep.curves_df(), rep.runs_df(),
-                             os.path.join(out_dir, "curves.png"),
-                             title="PAN vs Transformer")
-        plot_parameter_efficiency(rep.runs_df(),
-                                   os.path.join(out_dir, "param_efficiency.png"))
-        plot_ablation_bars(rep.ablations_df(),
-                            os.path.join(out_dir, "ablations.png"))
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("k_sweep")
-def exp_k_sweep(base: RunConfig, out_dir: str,
-                dry_run: bool = False,
-                ks: Optional[List[int]] = None,
-                seeds: Optional[List[int]] = None,
-                **_) -> ExperimentReporter:
-    """Parameter-count sweep over K."""
-    ks    = ks    or list(range(1, 16))
-    seeds = seeds or [42, 123, 456]
-    cfgs = [
-        base.with_overrides(model_kind="pan", k_freqs=k, seed=s,
-                             weight_decay=0.01, label=f"K{k}-s{s}")
-        for k in ks for s in seeds
-    ]
-    rep = _run_cfgs(cfgs, "k_sweep", out_dir, dry_run, ablations=False)
-    if not dry_run:
-        plot_sweep_reliability(rep.runs_df(), group_by="k_freqs",
-            out_path=os.path.join(out_dir, "reliability.png"),
-            title=f"K sweep  —  P={base.p}")
-        plot_training_curves(rep.curves_df(), rep.runs_df(),
-            os.path.join(out_dir, "curves.png"), title="K sweep curves")
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("dw_sweep")
-def exp_dw_sweep(base: RunConfig, out_dir: str,
-                 dry_run: bool = False,
-                 dws: Optional[List[float]] = None,
-                 seeds: Optional[List[int]] = None,
-                 k_freqs: int = 9,
-                 **_) -> ExperimentReporter:
-    dws   = dws   or [0.0, 0.005, 0.01, 0.02, 0.05, 0.1]
-    seeds = seeds or [42, 123, 456, 789, 999]
-    cfgs = [
-        base.with_overrides(model_kind="pan", k_freqs=k_freqs,
-                             weight_decay=0.01, diversity_weight=dw,
-                             seed=s, label=f"DW{dw}-s{s}")
-        for dw in dws for s in seeds
-    ]
-    rep = _run_cfgs(cfgs, "dw_sweep", out_dir, dry_run, ablations=False)
-    if not dry_run:
-        plot_sweep_reliability(rep.runs_df(), group_by="diversity_weight",
-            out_path=os.path.join(out_dir, "reliability.png"),
-            title=f"Diversity-weight sweep  —  K={k_freqs}")
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("wd_sweep")
-def exp_wd_sweep(base: RunConfig, out_dir: str,
-                 dry_run: bool = False,
-                 wds: Optional[List[float]] = None,
-                 seeds: Optional[List[int]] = None,
-                 k_freqs: int = 9,
-                 **_) -> ExperimentReporter:
-    wds   = wds   or [0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
-    seeds = seeds or [42, 123, 456]
-    cfgs = [
-        base.with_overrides(model_kind="pan", k_freqs=k_freqs,
-                             weight_decay=wd, seed=s,
-                             label=f"WD{wd}-s{s}")
-        for wd in wds for s in seeds
-    ]
-    rep = _run_cfgs(cfgs, "wd_sweep", out_dir, dry_run, ablations=False)
-    if not dry_run:
-        plot_sweep_reliability(rep.runs_df(), group_by="weight_decay",
-            out_path=os.path.join(out_dir, "reliability.png"),
-            title=f"Weight-decay sweep  —  K={k_freqs}")
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("k8_sweep")
-def exp_k8_sweep(base: RunConfig, out_dir: str,
-                 dry_run: bool = False,
-                 seeds: Optional[List[int]] = None,
-                 **_) -> ExperimentReporter:
-    """K=8 anomaly investigation — many seeds, longer training."""
-    seeds = seeds or [42, 123, 456, 789, 999,
-                       1234, 2345, 3456, 4567, 5678]
-    cfgs = [
-        base.with_overrides(model_kind="pan", k_freqs=8,
-                             weight_decay=0.01, seed=s,
-                             early_stop=False, label=f"K8-s{s}")
-        for s in seeds
-    ]
-    rep = _run_cfgs(cfgs, "k8_sweep", out_dir, dry_run, ablations=False)
-    if not dry_run:
-        plot_training_curves(rep.curves_df(), rep.runs_df(),
-            os.path.join(out_dir, "curves.png"), title="K=8 — all seeds")
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("primes")
-def exp_primes(base: RunConfig, out_dir: str,
-               dry_run: bool = False,
-               primes: Optional[List[int]] = None,
-               **_) -> ExperimentReporter:
-    primes = primes or [43, 67, 89, 113, 127]
-    cfgs = [
-        base.with_overrides(model_kind="pan", p=p, k_freqs=base.k_freqs,
-                             weight_decay=0.01,
-                             label=f"P{p}")
-        for p in primes
-    ]
-    rep = _run_cfgs(cfgs, "primes", out_dir, dry_run, ablations=True)
-    if not dry_run:
-        plot_sweep_reliability(rep.runs_df(), group_by="p",
-            out_path=os.path.join(out_dir, "reliability.png"),
-            title=f"Cross-prime generalization  —  K={base.k_freqs}")
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("held_out_primes")
-def exp_held_out(base: RunConfig, out_dir: str,
-                 dry_run: bool = False,
-                 primes: Optional[List[int]] = None,
-                 **_) -> ExperimentReporter:
-    """Primes never seen in development — 59, 71, 97."""
-    primes = primes or [59, 71, 97]
-    cfgs = [
-        base.with_overrides(model_kind="pan", p=p, k_freqs=base.k_freqs,
-                             weight_decay=0.01, label=f"P{p}-held")
-        for p in primes
-    ]
-    rep = _run_cfgs(cfgs, "held_out_primes", out_dir, dry_run,
-                     ablations=True)
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("tier3")
-def exp_tier3(base: RunConfig, out_dir: str,
-              dry_run: bool = False, **_) -> ExperimentReporter:
-    """Tier 3 mechanistic: single long run with full checkpoint logging."""
-    cfg = base.with_overrides(
-        model_kind="pan", weight_decay=0.01, early_stop=False,
-        record_checkpoints=True, label="tier3"
-    )
-    rep = _run_cfgs(
-        [cfg], "tier3", out_dir, dry_run,
-        hook_factory=lambda c: [CheckpointLogger()],
-        ablations=True, slots=True,
-    )
-    if not dry_run and not rep.checkpoints_df().empty:
-        plot_freq_err_trajectories(
-            rep.checkpoints_df(), rep.runs_df(),
-            os.path.join(out_dir, "freq_err_trajectories.png"),
-            title=f"Frequency error trajectories  —  P={cfg.p}  K={cfg.k_freqs}")
-        plot_freq_trajectories(
-            rep.checkpoints_df(), rep.runs_df(),
-            os.path.join(out_dir, "freq_trajectories.png"),
-            title=f"Frequency trajectories  —  P={cfg.p}  K={cfg.k_freqs}")
-        plot_training_curves(rep.curves_df(), rep.runs_df(),
-            os.path.join(out_dir, "curves.png"),
-            title="Tier 3 training curve")
-        plot_ablation_bars(rep.ablations_df(),
-            os.path.join(out_dir, "ablations.png"))
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("slot_census")
-def exp_slot_census(base: RunConfig, out_dir: str,
-                    dry_run: bool = False,
-                    seeds: Optional[List[int]] = None,
-                    **_) -> ExperimentReporter:
-    """
-    Experiment A — frequency-slot activation census.
-
-    Train many PANs at the same K, check which slots converge to the
-    Fourier basis. Produces slots.csv and a heatmap showing whether
-    all seeds find the same K frequencies.
-    """
-    seeds = seeds or list(range(20))
-    cfgs = [
-        base.with_overrides(model_kind="pan", seed=s, weight_decay=0.01,
-                             label=f"census-s{s}")
-        for s in seeds
-    ]
-    rep = _run_cfgs(cfgs, "slot_census", out_dir, dry_run,
-                     ablations=False, slots=True)
-    if not dry_run:
-        plot_slot_census(rep.slots_df(),
-                          os.path.join(out_dir, "slot_census.png"),
-                          title=f"Slot census  —  P={base.p}  K={base.k_freqs}")
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("freq_init_ablation")
-def exp_freq_init_ablation(base: RunConfig, out_dir: str,
-                            dry_run: bool = False,
-                            seeds: Optional[List[int]] = None,
-                            **_) -> ExperimentReporter:
-    """
-    Experiment H — random-init vs Fourier-init. If PAN still grokks with
-    random frequency initialization, the architecture is doing the work.
-    If only Fourier init works, the good init is doing half the work.
-    """
-    seeds = seeds or [42, 123, 456, 789, 999]
-    cfgs = []
-    for init in ("fourier", "random"):
-        for s in seeds:
-            cfgs.append(base.with_overrides(
-                model_kind="pan", seed=s, freq_init=init,
-                weight_decay=0.01, label=f"{init}-s{s}"))
-    rep = _run_cfgs(cfgs, "freq_init_ablation", out_dir, dry_run,
-                     ablations=False, slots=True)
-    if not dry_run:
-        plot_sweep_reliability(rep.runs_df(), group_by="freq_init",
-            out_path=os.path.join(out_dir, "reliability.png"),
-            title="Fourier vs random frequency init")
-    return rep
+# grid_sweep subsumes what used to be 13 near-identical sweep functions
+# (compare, k_sweep, dw_sweep, wd_sweep, k8_sweep, primes, held_out_primes,
+# tier3, slot_census, freq_init_ablation, tf_sweep, mod_mul, mod_two_step).
+# Each of those is now a YAML that dispatches here.
+from pan_lab.grid_sweep import run_grid_sweep
+register("grid_sweep")(run_grid_sweep)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -511,74 +274,6 @@ def exp_decoder_swap(base: RunConfig, out_dir: str,
     print(swap_df.to_string(index=False))
     return rep
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("mod_mul")
-def exp_mod_mul(base: RunConfig, out_dir: str,
-                 dry_run: bool = False,
-                 seeds: Optional[List[int]] = None,
-                 **_) -> ExperimentReporter:
-    """Modular multiplication — Section 5.3."""
-    seeds = seeds or [42, 123, 456]
-    cfgs = [base.with_overrides(model_kind="pan", task_kind="mod_mul",
-                                 weight_decay=0.01, seed=s,
-                                 label=f"mul-s{s}")
-            for s in seeds]
-    rep = _run_cfgs(cfgs, "mod_mul", out_dir, dry_run, ablations=True)
-    if not dry_run:
-        plot_training_curves(rep.curves_df(), rep.runs_df(),
-            os.path.join(out_dir, "curves.png"),
-            title=f"Modular multiplication  —  P={base.p}")
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("mod_two_step")
-def exp_mod_two_step(base: RunConfig, out_dir: str,
-                      dry_run: bool = False,
-                      seeds: Optional[List[int]] = None,
-                      **_) -> ExperimentReporter:
-    """Two-step arithmetic (a+b)*c mod P — Section 5.3."""
-    seeds = seeds or [42, 123, 456]
-    cfgs = [base.with_overrides(model_kind="pan", task_kind="mod_two_step",
-                                 weight_decay=0.01, seed=s,
-                                 label=f"2step-s{s}")
-            for s in seeds]
-    rep = _run_cfgs(cfgs, "mod_two_step", out_dir, dry_run, ablations=True)
-    if not dry_run:
-        plot_training_curves(rep.curves_df(), rep.runs_df(),
-            os.path.join(out_dir, "curves.png"),
-            title=f"Two-step (a+b)*c mod {base.p}")
-    return rep
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-@register("tf_sweep")
-def exp_tf_sweep(base: RunConfig, out_dir: str,
-                 dry_run: bool = False,
-                 d_models: Optional[List[int]] = None,
-                 seeds: Optional[List[int]] = None,
-                 **_) -> ExperimentReporter:
-    """Minimum transformer d_model for mod-P — honest param comparison."""
-    d_models = d_models or [8, 16, 32, 64, 128]
-    seeds    = seeds    or [42, 123, 456]
-    cfgs = []
-    for d in d_models:
-        n_heads = max(1, d // 16)
-        d_mlp   = 4 * d
-        for s in seeds:
-            cfgs.append(base.with_overrides(
-                model_kind="transformer", d_model=d, n_heads=n_heads,
-                d_mlp=d_mlp, weight_decay=1.0, seed=s,
-                label=f"TF-d{d}-s{s}"))
-    rep = _run_cfgs(cfgs, "tf_sweep", out_dir, dry_run, ablations=False)
-    if not dry_run:
-        plot_sweep_reliability(rep.runs_df(), group_by="d_model",
-            out_path=os.path.join(out_dir, "reliability.png"),
-            title="Transformer d_model sweep")
-        plot_parameter_efficiency(rep.runs_df(),
-            os.path.join(out_dir, "param_efficiency.png"))
-    return rep
 
 # ─────────────────────────────────────────────────────────────────────────
 # Decoder Experiment Helpers
@@ -1129,6 +824,11 @@ def load_experiment_yaml(path: str) -> tuple:
     """
     Parse a YAML experiment spec into (name, base_cfg, out_dir,
     dry_run, experiment_args).
+
+    Top-level keys `grid`, `options`, and `plots` (used by grid_sweep) are
+    merged into experiment_args so they flow through to the experiment
+    function as keyword arguments. Legacy YAMLs with `experiment_args:`
+    continue to work.
     """
     with open(path, "r") as f:
         spec = yaml.safe_load(f)
@@ -1140,7 +840,11 @@ def load_experiment_yaml(path: str) -> tuple:
     base_dict = spec.get("base", {})
     base_cfg  = RunConfig.from_dict(base_dict)
 
-    exp_args = spec.get("experiment_args", {}) or {}
+    exp_args = dict(spec.get("experiment_args", {}) or {})
+    for key in ("grid", "options", "plots"):
+        if key in spec:
+            exp_args[key] = spec[key]
+
     return name, base_cfg, out_dir, dry_run, exp_args
 
 

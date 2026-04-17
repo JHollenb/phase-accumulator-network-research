@@ -1,7 +1,7 @@
 # Experiment H — frequency-init ablation (Fourier vs random).
 # If random-init still grokks, the architecture is doing the work.
 # If only Fourier-init grokks, the good init is doing most of the work.
-experiment: freq_init_ablation
+experiment: grid_sweep
 out_dir:    results/freq_init_ablation
 
 base:
@@ -14,5 +14,15 @@ base:
   early_stop:       true
   save_model:       true
 
-experiment_args:
-  seeds: [42, 123, 456, 789, 999]
+grid:
+  freq_init: [fourier, random]
+  seed:      [42, 123, 456, 789, 999]
+
+options:
+  ablations: false
+  slots:     true
+
+plots:
+  - {type: sweep_reliability, group_by: freq_init,
+     filename: reliability.png,
+     title: "Fourier vs random frequency init"}

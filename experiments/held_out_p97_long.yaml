@@ -1,7 +1,7 @@
 # Held-out prime P=97 at extended budget.
 # At 200K steps, P=97 peaked at 83%. P=89 needed 139K — P=97 likely
 # needs similarly long. This run gives it 500K.
-experiment: held_out_primes
+experiment: grid_sweep
 out_dir:    results/held_out_primes_p97_long
 
 base:
@@ -13,6 +13,3 @@ base:
   log_every:        1000
   early_stop:       true
   save_model:       true
-
-experiment_args:
-  primes: [97]

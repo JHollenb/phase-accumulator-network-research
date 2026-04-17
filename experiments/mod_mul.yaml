@@ -1,17 +1,21 @@
 # Modular multiplication — Section 5.3 / Experiment B.
 # a*b mod P. Tests whether phase-mixing architecture handles
 # non-addition group structure. Known-hard for Nanda's Clock circuit.
-experiment: mod_mul
+experiment: grid_sweep
 out_dir:    results/mod_mul
 
 base:
   p:                113
   k_freqs:          9
+  task_kind:        mod_mul
   n_steps:          200000
   weight_decay:     0.01
   diversity_weight: 0.01
   log_every:        500
   early_stop:       true
 
-experiment_args:
-  seeds: [42, 123, 456]
+grid:
+  seed: [42, 123, 456]
+
+plots:
+  - {type: training_curves, title: "Modular multiplication  —  P=113"}

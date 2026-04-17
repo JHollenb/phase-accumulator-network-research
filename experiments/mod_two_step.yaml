@@ -1,17 +1,21 @@
 # Two-step arithmetic — Section 5.3 / Experiment C.
 # (a+b)*c mod P. P^3 triples, so we drop P to 23 to keep training set size
 # manageable (~12k pairs rather than 1.4M at P=113). Tests composition.
-experiment: mod_two_step
+experiment: grid_sweep
 out_dir:    results/mod_two_step
 
 base:
   p:                23
   k_freqs:          9
+  task_kind:        mod_two_step
   n_steps:          200000
   weight_decay:     0.01
   diversity_weight: 0.01
   log_every:        500
   early_stop:       true
 
-experiment_args:
-  seeds: [42, 123, 456]
+grid:
+  seed: [42, 123, 456]
+
+plots:
+  - {type: training_curves, title: "Two-step (a+b)*c mod 23"}

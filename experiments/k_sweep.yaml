@@ -1,16 +1,24 @@
 # K sweep — minimum reliable frequency count.
-experiment: k_sweep
+experiment: grid_sweep
 out_dir:    results/k_sweep
 
 base:
-  p:            113
-  n_steps:      100000
-  weight_decay: 0.01
+  p:                113
+  n_steps:          100000
+  weight_decay:     0.01
   diversity_weight: 0.01
-  log_every:    500
-  early_stop:   true
+  log_every:        500
+  early_stop:       true
   save_model:       true
 
-experiment_args:
-  ks:    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-  seeds: [42, 123, 299, 456, 789, 999, 1024, 3456, 8904, 10101]
+grid:
+  k_freqs: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  seed:    [42, 123, 299, 456, 789, 999, 1024, 3456, 8904, 10101]
+
+options:
+  ablations: false
+
+plots:
+  - {type: sweep_reliability, group_by: k_freqs,
+     filename: reliability.png, title: "K sweep  —  P=113"}
+  - {type: training_curves, title: "K sweep curves"}

@@ -24,12 +24,14 @@ plan:
 	    | grep -E "^(══|  total|  device)" ; \
 	done
 
-# Fast end-to-end smoke test (~10s): runs compare at P=11, K=3, 500 steps.
+# Fast end-to-end smoke test (~10s): pan vs tf at P=11, K=3, 500 steps.
 smoke:
 	@python -c "import yaml; open('/tmp/panlab_smoke.yaml','w').write(yaml.dump({\
-	  'experiment':'compare','out_dir':'/tmp/panlab_smoke',\
+	  'experiment':'grid_sweep','out_dir':'/tmp/panlab_smoke',\
 	  'base':{'p':11,'k_freqs':3,'n_steps':500,'batch_size':64,\
-	          'log_every':100,'early_stop':False,'use_compile':False}}))"
+	          'log_every':100,'early_stop':False,'use_compile':False},\
+	  'grid':[{'model_kind':'pan','weight_decay':0.01,'label':'pan'},\
+	          {'model_kind':'transformer','weight_decay':1.0,'label':'tf'}]}))"
 	python -m pan_lab /tmp/panlab_smoke.yaml
 	@echo "smoke output in /tmp/panlab_smoke/"
 

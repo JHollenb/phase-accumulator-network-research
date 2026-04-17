@@ -4,17 +4,30 @@
 #   ablations.png         — zero-component interventions
 #   slot_census.png       — which slots converged to the Fourier basis
 #   checkpoints.csv       — one row per (step, encoder, k)
-experiment: tier3
+experiment: grid_sweep
 out_dir:    results/tier3
 
 base:
-  p:                113
-  k_freqs:          9
-  n_steps:          100000
-  weight_decay:     0.01
-  diversity_weight: 0.01
-  seed:             42
-  log_every:        500
-  early_stop:       false
+  p:                  113
+  k_freqs:            9
+  n_steps:            100000
+  weight_decay:       0.01
+  diversity_weight:   0.01
+  seed:               42
+  log_every:          500
+  early_stop:         false
   record_checkpoints: true
-  save_model:       true
+  save_model:         true
+
+options:
+  ablations: true
+  slots:     true
+  hooks:     [checkpoint_logger]
+
+plots:
+  - {type: freq_err_trajectories,
+     title: "Frequency error trajectories  —  P=113  K=9"}
+  - {type: freq_trajectories,
+     title: "Frequency trajectories  —  P=113  K=9"}
+  - {type: training_curves, title: "Tier 3 training curve"}
+  - {type: ablation_bars}

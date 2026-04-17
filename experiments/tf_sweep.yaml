@@ -2,16 +2,42 @@
 # The paper currently compares PAN (~1,319 params) to the full-size
 # Nanda baseline (~227K params). The honest comparison is against the
 # smallest transformer that reliably grokks. This sweep finds it.
-experiment: tf_sweep
+#
+# n_heads = max(1, d_model // 16); d_mlp = 4 * d_model.
+# Axes are coupled, so we write out all 15 sub-runs explicitly.
+experiment: grid_sweep
 out_dir:    results/tf_sweep
 
 base:
   p:            113
+  model_kind:   transformer
   n_steps:      50000
-  weight_decay: 1.0               # Nanda's transformer WD
+  weight_decay: 1.0
   log_every:    500
   early_stop:   true
 
-experiment_args:
-  d_models: [8, 16, 32, 64, 128]
-  seeds:    [42, 123, 456]
+grid:
+  - {d_model:   8, n_heads: 1, d_mlp:  32, seed:  42, label: TF-d8-s42}
+  - {d_model:   8, n_heads: 1, d_mlp:  32, seed: 123, label: TF-d8-s123}
+  - {d_model:   8, n_heads: 1, d_mlp:  32, seed: 456, label: TF-d8-s456}
+  - {d_model:  16, n_heads: 1, d_mlp:  64, seed:  42, label: TF-d16-s42}
+  - {d_model:  16, n_heads: 1, d_mlp:  64, seed: 123, label: TF-d16-s123}
+  - {d_model:  16, n_heads: 1, d_mlp:  64, seed: 456, label: TF-d16-s456}
+  - {d_model:  32, n_heads: 2, d_mlp: 128, seed:  42, label: TF-d32-s42}
+  - {d_model:  32, n_heads: 2, d_mlp: 128, seed: 123, label: TF-d32-s123}
+  - {d_model:  32, n_heads: 2, d_mlp: 128, seed: 456, label: TF-d32-s456}
+  - {d_model:  64, n_heads: 4, d_mlp: 256, seed:  42, label: TF-d64-s42}
+  - {d_model:  64, n_heads: 4, d_mlp: 256, seed: 123, label: TF-d64-s123}
+  - {d_model:  64, n_heads: 4, d_mlp: 256, seed: 456, label: TF-d64-s456}
+  - {d_model: 128, n_heads: 8, d_mlp: 512, seed:  42, label: TF-d128-s42}
+  - {d_model: 128, n_heads: 8, d_mlp: 512, seed: 123, label: TF-d128-s123}
+  - {d_model: 128, n_heads: 8, d_mlp: 512, seed: 456, label: TF-d128-s456}
+
+options:
+  ablations: false
+
+plots:
+  - {type: sweep_reliability, group_by: d_model,
+     filename: reliability.png,
+     title: "Transformer d_model sweep"}
+  - {type: parameter_efficiency}

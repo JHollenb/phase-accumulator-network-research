@@ -1,8 +1,7 @@
 # PAN vs transformer head-to-head, mod-113.
 # Reproduces the Tier 1 comparison from the paper.
-experiment: compare
+experiment: grid_sweep
 out_dir:    results/compare
-dry_run:    false
 
 base:
   p:           113
@@ -16,3 +15,14 @@ base:
   early_stop:  true
   val_samples: null          # use full val set
   use_compile: false
+
+# Coupled axes: the transformer needs its own weight_decay. Use the explicit
+# list-of-dicts form so each sub-run gets its correct settings.
+grid:
+  - {model_kind: pan,         weight_decay: 0.01, label: pan}
+  - {model_kind: transformer, weight_decay: 1.0,  label: tf}
+
+plots:
+  - {type: training_curves, title: "PAN vs Transformer"}
+  - {type: parameter_efficiency}
+  - {type: ablation_bars}

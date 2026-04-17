@@ -1,17 +1,23 @@
 # K=8 anomaly — does it grok with enough seeds?
 # Section 4 of the paper: 0/3 seeds grokked at K=8 while K=7 and K=9 did.
 # Long runs (200K), 10 seeds, no early stopping — lets us see plateau vs fail.
-experiment: k8_sweep
+experiment: grid_sweep
 out_dir:    results/k8_sweep
 
 base:
-  p:            113
-  k_freqs:      8
-  n_steps:      200000
-  weight_decay: 0.01
+  p:                113
+  k_freqs:          8
+  n_steps:          200000
+  weight_decay:     0.01
   diversity_weight: 0.01
-  log_every:    500
-  early_stop:   false
+  log_every:        500
+  early_stop:       false
 
-experiment_args:
-  seeds: [42, 123, 456, 789, 999, 1234, 2345, 3456, 4567, 5678]
+grid:
+  seed: [42, 123, 456, 789, 999, 1234, 2345, 3456, 4567, 5678]
+
+options:
+  ablations: false
+
+plots:
+  - {type: training_curves, title: "K=8 — all seeds"}

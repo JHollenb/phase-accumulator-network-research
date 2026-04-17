@@ -3,7 +3,7 @@
 # 4x the sample size to nail down the "random is strictly better"
 # claim. Currently: 5/5 at random init, 4/5 at fourier init. 20-seed
 # run brings the random arm to the same sample size as slot_census.
-experiment: slot_census
+experiment: grid_sweep
 out_dir:    results/random_init_census_20
 
 base:
@@ -17,6 +17,13 @@ base:
   early_stop:       true
   save_model:       true
 
-experiment_args:
-  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-          10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+grid:
+  seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+
+options:
+  ablations: false
+  slots:     true
+
+plots:
+  - {type: slot_census, title: "Slot census (random init)  —  P=113  K=9"}

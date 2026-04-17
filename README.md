@@ -36,27 +36,33 @@ uv run python -m pan_lab experiments/tier3.yaml
 uv run python -m pan_lab --replot results/tier3
 
 # Ad-hoc run without a YAML file
-uv run python -m pan_lab --ad-hoc compare --p 113 --k 9 --steps 50000
+uv run python -m pan_lab --ad-hoc grid_sweep --p 113 --k 9 --steps 50000
 ```
 
 ## What's in the box
 
-**Registered experiments** (see `experiments/*.yaml`):
+**Shipped YAMLs** (`experiments/*.yaml`). Almost all of them dispatch to
+the generic `grid_sweep` experiment; three (`sifp16_inference`,
+`decoder_swap`, `decoder_analysis`) have their own functions for
+post-training analysis.
 
-| Experiment | Addresses | Scale |
+| YAML | Addresses | Scale |
 |---|---|---|
 | `compare` | PAN vs transformer head-to-head | 2 runs |
-| `k_sweep` | Minimum K for reliable grokking | 45 runs |
+| `k_sweep` | Minimum K for reliable grokking | 150 runs |
 | `k8_sweep` | K=8 anomaly investigation (§4) | 10 runs |
 | `dw_sweep` | Diversity-weight reliability | 30 runs |
 | `wd_sweep` | Weight-decay reliability | 18 runs |
 | `primes` | Cross-prime generalization | 5 runs |
 | `held_out_primes` | Primes unseen in development | 3 runs |
+| `held_out_p97_long` | P=97 at 500K steps | 1 long run |
 | `tier3` | Mechanistic equivalence (§5.1) | 1 long run |
 | `slot_census` | **Exp A**: slot activation census | 20 runs |
+| `random_init_census_20` | 20-seed random-init census | 20 runs |
 | `freq_init_ablation` | **Exp H**: Fourier vs random init | 10 runs |
 | `sifp16_inference` | **Exp E**: 16-bit quant at inference | 3 runs |
 | `decoder_swap` | **Exp I**: swap to Fourier decoder | 3 runs |
+| `decoder_analysis` | Clock-basis decomposition of the learned decoder | 5 runs |
 | `mod_mul` | **Exp B**: modular multiplication | 3 runs |
 | `mod_two_step` | **Exp C**: (a+b)·c mod P | 3 runs |
 | `tf_sweep` | Minimum transformer d_model | 15 runs |
@@ -121,9 +127,10 @@ pan_lab/
 │   ├── analysis.py        ablations, freq errors, slot census
 │   ├── reporting.py       ExperimentReporter, pandas aggregation, CSV
 │   ├── plots.py           matplotlib figures (consume DataFrames only)
-│   ├── experiments.py     EXPERIMENT_REGISTRY + YAML loader
+│   ├── experiments.py     EXPERIMENT_REGISTRY + YAML loader + bespoke exps
+│   ├── grid_sweep.py      generic sweep: base + grid + options + plots
 │   └── cli.py             python -m pan_lab entry
-├── experiments/           15 YAML specs
+├── experiments/           18 YAML specs
 ├── tests/                 55 pytest tests, ~25s on CPU
 └── pyproject.toml
 ```
@@ -131,7 +138,7 @@ pan_lab/
 ## YAML schema
 
 ```
-experiment: k8_sweep         # name from EXPERIMENT_REGISTRY
+experiment: grid_sweep       # the generic sweep; most YAMLs use this
 out_dir:    results/k8_sweep
 dry_run:    false            # can be forced via --dry-run
 
@@ -142,43 +149,64 @@ base:                        # RunConfig fields — any subset
   weight_decay: 0.01
   ...
 
-experiment_args:             # experiment-specific overrides (optional)
-  seeds: [42, 123, 456, ...]
+grid:                        # dict → Cartesian product across fields
+  seed: [42, 123, 456, 789]
+# OR list-of-dicts when axes are coupled (e.g. tf_sweep's
+# d_model / n_heads / d_mlp):
+# grid:
+#   - {d_model: 16, n_heads: 1, d_mlp: 64, seed: 42, label: TF-d16-s42}
+
+options:                     # optional
+  ablations: false           # default true
+  slots:     true            # default false
+  hooks:     [checkpoint_logger]   # see HOOK_REGISTRY in pan_lab/grid_sweep.py
+
+plots:                       # optional; declarative list of figures
+  - {type: training_curves, title: "K=8 — all seeds"}
+  - {type: sweep_reliability, group_by: k_freqs}
 ```
 
-Unknown fields in `base` raise a warning but do not fail — you can put
-comments-as-fields in YAML for future readers.
+Plot specs are resolved by `PLOT_REGISTRY` in `pan_lab/grid_sweep.py`:
+`training_curves`, `sweep_reliability`, `ablation_bars`,
+`parameter_efficiency`, `slot_census`, `freq_trajectories`,
+`freq_err_trajectories`. Unknown fields in `base` raise a warning but
+do not fail — you can put comments-as-fields in YAML for future readers.
 
 ## Adding a new experiment
 
-Write the function, register it, write the YAML. That's it.
-
-```python
-# in pan_lab/experiments.py
-@register("my_experiment")
-def exp_my_experiment(base, out_dir, dry_run=False,
-                      seeds=None, **_):
-    seeds = seeds or [42, 123, 456]
-    cfgs = [base.with_overrides(seed=s, label=f"my-s{s}")
-            for s in seeds]
-    rep = _run_cfgs(cfgs, "my_experiment", out_dir, dry_run,
-                    ablations=True)
-    if not dry_run:
-        # any extra plotting here
-        pass
-    return rep
-```
+For a sweep, write only a YAML — no Python:
 
 ```
 # experiments/my_experiment.yaml
-experiment: my_experiment
+experiment: grid_sweep
 out_dir:    results/my_experiment
 base:
   p:       113
   k_freqs: 9
   n_steps: 50000
-experiment_args:
-  seeds: [42, 123, 456, 789]
+grid:
+  seed: [42, 123, 456, 789]
+plots:
+  - {type: training_curves, title: "my experiment"}
+```
+
+For experiments that do bespoke post-training analysis (the shape of
+`sifp16_inference`, `decoder_swap`, `decoder_analysis`), write a
+function in `pan_lab/experiments.py`:
+
+```python
+@register("my_custom")
+def exp_my_custom(base, out_dir, dry_run=False, seeds=None, **_):
+    seeds = seeds or [42, 123, 456]
+    cfgs = [base.with_overrides(seed=s, label=f"mc-s{s}") for s in seeds]
+    if dry_run:
+        _print_plan(cfgs, "my_custom")
+        return ExperimentReporter("my_custom", out_dir)
+    rep = ExperimentReporter("my_custom", out_dir)
+    for cfg in cfgs:
+        ...                           # your custom training + analysis
+    rep.write_all()
+    return rep
 ```
 
 ## What's different from the original `pan.py`

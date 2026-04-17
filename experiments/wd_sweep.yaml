@@ -1,14 +1,22 @@
-experiment: wd_sweep
+# Weight-decay reliability sweep at K=9.
+experiment: grid_sweep
 out_dir:    results/wd_sweep
 
 base:
-  p:            113
-  n_steps:      100000
+  p:                113
+  k_freqs:          9
+  n_steps:          100000
   diversity_weight: 0.01
-  log_every:    500
-  early_stop:   true
+  log_every:        500
+  early_stop:       true
 
-experiment_args:
-  wds:     [0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
-  seeds:   [42, 123, 456]
-  k_freqs: 9
+grid:
+  weight_decay: [0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
+  seed:         [42, 123, 456]
+
+options:
+  ablations: false
+
+plots:
+  - {type: sweep_reliability, group_by: weight_decay,
+     title: "Weight-decay sweep  —  K=9"}
