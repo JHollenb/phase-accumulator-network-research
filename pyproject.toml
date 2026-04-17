@@ -1,0 +1,34 @@
+[build-system]
+requires      = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "pan_lab"
+version         = "0.1.0"
+description     = "Phase Accumulator Network research library"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0",
+    "numpy>=1.23",
+    "pandas>=2.0",
+    "matplotlib>=3.6",
+    "pyyaml>=6.0",
+    "pytest>=8.4.2",
+    "tabulate>=0.9.0",
+    "scikit-learn>=1.6.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+pan-run = "pan_lab.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pan_lab*"]
+
+[tool.pytest.ini_options]
+testpaths       = ["tests"]
+python_files    = ["test_*.py"]
+addopts         = "-q"
+filterwarnings  = ["ignore::DeprecationWarning"]
