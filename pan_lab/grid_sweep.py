@@ -34,6 +34,9 @@ from pan_lab.plots  import (
     plot_ablation_bars,
     plot_freq_err_trajectories,
     plot_freq_trajectories,
+    plot_metric_formation_curves,
+    plot_metric_peak_timescales,
+    plot_metric_spectra,
     plot_parameter_efficiency,
     plot_slot_census,
     plot_sweep_reliability,
@@ -51,13 +54,16 @@ HOOK_REGISTRY: Dict[str, Callable[[], Any]] = {
 # Each entry: plot_fn, required ExperimentReporter getters, default filename.
 # `None` filename means the renderer builds it (e.g. reliability_<group_by>.png).
 PLOT_REGISTRY: Dict[str, Tuple[Callable, Tuple[str, ...], Optional[str]]] = {
-    "training_curves":       (plot_training_curves,       ("curves_df", "runs_df"),       "curves.png"),
-    "sweep_reliability":     (plot_sweep_reliability,     ("runs_df",),                   None),
-    "ablation_bars":         (plot_ablation_bars,         ("ablations_df",),              "ablations.png"),
-    "parameter_efficiency":  (plot_parameter_efficiency,  ("runs_df",),                   "param_efficiency.png"),
-    "slot_census":           (plot_slot_census,           ("slots_df",),                  "slot_census.png"),
-    "freq_trajectories":     (plot_freq_trajectories,     ("checkpoints_df", "runs_df"),  "freq_trajectories.png"),
-    "freq_err_trajectories": (plot_freq_err_trajectories, ("checkpoints_df", "runs_df"),  "freq_err_trajectories.png"),
+    "training_curves":         (plot_training_curves,         ("curves_df", "runs_df"),        "curves.png"),
+    "sweep_reliability":       (plot_sweep_reliability,       ("runs_df",),                    None),
+    "ablation_bars":           (plot_ablation_bars,           ("ablations_df",),               "ablations.png"),
+    "parameter_efficiency":    (plot_parameter_efficiency,    ("runs_df",),                    "param_efficiency.png"),
+    "slot_census":             (plot_slot_census,             ("slots_df",),                   "slot_census.png"),
+    "freq_trajectories":       (plot_freq_trajectories,       ("checkpoints_df", "runs_df"),   "freq_trajectories.png"),
+    "freq_err_trajectories":   (plot_freq_err_trajectories,   ("checkpoints_df", "runs_df"),   "freq_err_trajectories.png"),
+    "metric_formation_curves": (plot_metric_formation_curves, ("metrics_df", "runs_df"),       "metric_formation_curves.png"),
+    "metric_spectra":          (plot_metric_spectra,          ("spectra_df",),                 "metric_spectra.png"),
+    "metric_peak_timescales":  (plot_metric_peak_timescales,  ("peaks_df",),                   "metric_peak_timescales.png"),
 }
 
 

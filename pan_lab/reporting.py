@@ -197,6 +197,14 @@ class ExperimentReporter:
     def slots_df(self)       -> pd.DataFrame: return pd.DataFrame(self._slots)
     def metrics_df(self)     -> pd.DataFrame: return pd.DataFrame(self._metrics)
 
+    def spectra_df(self) -> pd.DataFrame:
+        from pan_lab.training_dynamics import compute_metrics_spectra
+        return compute_metrics_spectra(self.metrics_df())
+
+    def peaks_df(self) -> pd.DataFrame:
+        from pan_lab.training_dynamics import summarize_metrics_spectra
+        return summarize_metrics_spectra(self.spectra_df())
+
     # ──────────────────────────────────────────────────────────────
     def write_all(self) -> dict:
         """

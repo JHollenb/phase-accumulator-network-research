@@ -33,6 +33,9 @@ def _replot(dir_path: str) -> None:
     from pan_lab.plots import (
         plot_ablation_bars,
         plot_freq_trajectories,
+        plot_metric_formation_curves,
+        plot_metric_peak_timescales,
+        plot_metric_spectra,
         plot_parameter_efficiency,
         plot_slot_census,
         plot_sweep_reliability,
@@ -70,6 +73,28 @@ def _replot(dir_path: str) -> None:
 
     plot_parameter_efficiency(runs,
         os.path.join(dir_path, "param_efficiency.png"))
+
+    m_path = os.path.join(dir_path, "metrics.csv")
+    if os.path.exists(m_path):
+        metrics_df = pd.read_csv(m_path)
+        if not metrics_df.empty:
+            plot_metric_formation_curves(metrics_df, runs,
+                os.path.join(dir_path, "metric_formation_curves.png"))
+
+    sp_path = os.path.join(dir_path, "metrics_spectra.csv")
+    if os.path.exists(sp_path):
+        sp = pd.read_csv(sp_path)
+        if not sp.empty:
+            plot_metric_spectra(sp,
+                os.path.join(dir_path, "metric_spectra.png"))
+
+    pk_path = os.path.join(dir_path, "metrics_peaks.csv")
+    if os.path.exists(pk_path):
+        pk = pd.read_csv(pk_path)
+        if not pk.empty:
+            plot_metric_peak_timescales(pk,
+                os.path.join(dir_path, "metric_peak_timescales.png"))
+
     print(f"re-plotted: {dir_path}")
 
 

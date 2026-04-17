@@ -8,8 +8,9 @@ from an old experiment's CSVs without retraining.
 """
 from __future__ import annotations
 
+import math
 import os
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Sequence
 
 import matplotlib
 matplotlib.use("Agg")
@@ -18,6 +19,21 @@ import numpy as np
 import pandas as pd
 
 from pan_lab.config import SIFP16_QUANT_ERR, TWO_PI
+
+
+# Default metrics to show in formation-curve / spectra / peak plots.
+# Order matters — the grid panels are laid out in this order.
+DEFAULT_FORMATION_METRICS: List[str] = [
+    "enc0_snap_mean",                 # M1 encoder frequency snap
+    "clock_compliance",               # M2
+    "mix_row_eff_n_mean",             # M4 sparsification
+    "active_freq_count",              # M5
+    "decoder_fourier_peak_mean",      # M8 decoder clock projection
+    "gate_linear_acc",                # M6 linear decodability
+    "logit_spec_diag_frac_mean",      # M9 diag-power fraction
+    "logit_spec_peak_sparsity_mean",  # M9 top-5 bin share
+    "sifp16_acc",                     # M7 quantized robustness
+]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colors kept consistent across figures. Avoid heavy styling — one
@@ -382,6 +398,221 @@ def plot_ablation_bars(
     ax.set(ylabel="val accuracy", ylim=(0, 1.05), title=title)
     ax.axhline(0.99, color="#888", lw=0.8, ls="--")
     ax.grid(alpha=0.25, axis="y")
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140, bbox_inches="tight")
+    plt.close(fig)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Formation-curve / spectra / peak-timescale plots for metrics.csv
+# ─────────────────────────────────────────────────────────────────────────────
+def _filter_metrics_list(
+    candidates: Sequence[str],
+    available: Sequence[str],
+) -> List[str]:
+    """Drop any requested metric not present in `available`."""
+    avail = set(available)
+    return [m for m in candidates if m in avail]
+
+
+def plot_metric_formation_curves(
+    metrics_df: pd.DataFrame,
+    runs_df:    pd.DataFrame,
+    out_path:   str,
+    metrics:    Optional[Sequence[str]] = None,
+    title:      str = "Metric formation curves",
+    max_lines:  int = 20,
+) -> None:
+    """
+    Grid of small panels — one per mechanistic metric — showing how it
+    evolves across training steps. One line per run; dotted vertical at
+    each run's grok step.
+
+    Expensive metrics (M6/M7/M9) are populated only at the
+    `metrics_expensive_every` cadence, so they appear as sparse
+    markers+lines; cheap metrics are dense.
+    """
+    _ensure(out_path)
+    if metrics_df.empty:
+        return
+
+    panel_metrics = _filter_metrics_list(
+        list(metrics) if metrics is not None else DEFAULT_FORMATION_METRICS,
+        metrics_df.columns,
+    )
+    if not panel_metrics:
+        return
+
+    run_ids = list(metrics_df["run_id"].unique())
+    if len(run_ids) > max_lines:
+        run_ids = run_ids[:max_lines]
+    grok_lookup = dict(zip(runs_df["run_id"], runs_df["grok_step"]))
+    colors = plt.cm.tab10(np.linspace(0, 0.9, max(len(run_ids), 1)))
+
+    n_cols = min(3, len(panel_metrics))
+    n_rows = math.ceil(len(panel_metrics) / n_cols)
+    fig, axes = plt.subplots(
+        n_rows, n_cols,
+        figsize=(4.5 * n_cols, 3.0 * n_rows),
+        squeeze=False,
+    )
+    for ax in axes.flat:
+        ax.set_visible(False)
+
+    for i, metric in enumerate(panel_metrics):
+        r, c = divmod(i, n_cols)
+        ax = axes[r, c]
+        ax.set_visible(True)
+        for rid, color in zip(run_ids, colors):
+            sub = metrics_df[metrics_df["run_id"] == rid][["step", metric]].dropna()
+            if sub.empty:
+                continue
+            sub = sub.sort_values("step")
+            ax.plot(sub["step"], sub[metric],
+                    color=color, lw=1.2, alpha=0.75, marker=".", markersize=3)
+            g = grok_lookup.get(rid, -1)
+            try:
+                g = int(g)
+            except (TypeError, ValueError):
+                g = -1
+            if g is not None and g >= 0:
+                ax.axvline(g, color=color, lw=0.5, ls=":", alpha=0.35)
+        ax.set(xlabel="step", ylabel=metric, title=metric)
+        ax.grid(alpha=0.25)
+
+    fig.suptitle(title, fontsize=12, weight="bold")
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_metric_spectra(
+    spectra_df: pd.DataFrame,
+    out_path:   str,
+    metrics:    Optional[Sequence[str]] = None,
+    title:      str = "Metric spectra",
+    aggregate:  str = "median",
+) -> None:
+    """
+    Log-log overlay of the DFT of each selected metric's time series.
+    x = timescale_steps (1/freq), y = spectral power.
+
+    aggregate:
+        "median"  — one line per metric, median power across runs, with
+                    a shaded min/max envelope.
+        "per_run" — one line per (run, metric).
+
+    Excludes the DC bin (freq == 0).
+    """
+    _ensure(out_path)
+    if spectra_df.empty:
+        return
+
+    available = list(spectra_df["metric"].unique())
+    panel_metrics = _filter_metrics_list(
+        list(metrics) if metrics is not None else DEFAULT_FORMATION_METRICS,
+        available,
+    )
+    if not panel_metrics:
+        return
+
+    df = spectra_df[spectra_df["freq_cycles_per_step"] > 0].copy()
+    df = df[df["metric"].isin(panel_metrics)]
+    if df.empty:
+        return
+
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    colors = plt.cm.tab10(np.linspace(0, 0.9, len(panel_metrics)))
+
+    if aggregate == "per_run":
+        for (metric, rid), g in df.groupby(["metric", "run_id"], sort=False):
+            idx   = panel_metrics.index(metric)
+            color = colors[idx]
+            g     = g.sort_values("timescale_steps")
+            ax.plot(g["timescale_steps"], g["power"],
+                    color=color, lw=0.9, alpha=0.55,
+                    label=metric if rid == df["run_id"].iloc[0] else None)
+    else:
+        for metric, color in zip(panel_metrics, colors):
+            g = df[df["metric"] == metric]
+            agg = (g.groupby("freq_cycles_per_step")
+                     .agg(power_med=("power", "median"),
+                          power_min=("power", "min"),
+                          power_max=("power", "max"),
+                          timescale=("timescale_steps", "first"))
+                     .reset_index()
+                     .sort_values("timescale"))
+            ax.plot(agg["timescale"], agg["power_med"],
+                    color=color, lw=1.5, label=metric)
+            ax.fill_between(agg["timescale"], agg["power_min"], agg["power_max"],
+                            color=color, alpha=0.12)
+
+    ax.set(xscale="log", yscale="log",
+           xlabel="timescale (steps)",
+           ylabel="spectral power",
+           title=title)
+    ax.invert_xaxis()   # slow (long timescale) on left → fast on right
+    ax.grid(alpha=0.25, which="both")
+    ax.legend(fontsize=8, loc="best", ncol=2)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_metric_peak_timescales(
+    peaks_df: pd.DataFrame,
+    out_path: str,
+    metrics:  Optional[Sequence[str]] = None,
+    title:    str = "Peak timescales",
+) -> None:
+    """
+    Horizontal bar chart: one row per metric, x-axis = mean peak
+    timescale across runs (log scale). Whiskers at min/max, annotated
+    with n_runs.
+    """
+    _ensure(out_path)
+    if peaks_df.empty:
+        return
+
+    available = list(peaks_df["metric"].unique())
+    panel_metrics = _filter_metrics_list(
+        list(metrics) if metrics is not None else DEFAULT_FORMATION_METRICS,
+        available,
+    )
+    if not panel_metrics:
+        return
+
+    df = peaks_df[peaks_df["metric"].isin(panel_metrics)]
+    if df.empty:
+        return
+
+    agg = (df.groupby("metric")["peak_timescale_steps"]
+             .agg(["mean", "min", "max", "size"])
+             .rename(columns={"size": "n_runs"}))
+    # Only metrics present in panel_metrics; drop any all-NaN rows
+    agg = agg.reindex([m for m in panel_metrics if m in agg.index]).dropna(subset=["mean"])
+    if agg.empty:
+        return
+
+    agg = agg.sort_values("mean")
+    y       = np.arange(len(agg))
+    means   = agg["mean"].to_numpy()
+    err_lo  = means - agg["min"].to_numpy()
+    err_hi  = agg["max"].to_numpy() - means
+
+    fig, ax = plt.subplots(figsize=(8, 0.45 * len(agg) + 2))
+    ax.barh(y, means,
+            xerr=[err_lo, err_hi],
+            color=C_PAN, alpha=0.85,
+            edgecolor="black", linewidth=0.5,
+            capsize=3)
+    ax.set_yticks(y)
+    ax.set_yticklabels(agg.index)
+    ax.set_xscale("log")
+    ax.set(xlabel="peak timescale (steps, log)", title=title)
+    ax.grid(alpha=0.25, axis="x", which="both")
+    for yi, (m, n) in enumerate(zip(means, agg["n_runs"])):
+        ax.text(m, yi, f"  n={int(n)}", va="center", fontsize=8, color="#333")
     fig.tight_layout()
     fig.savefig(out_path, dpi=140, bbox_inches="tight")
     plt.close(fig)

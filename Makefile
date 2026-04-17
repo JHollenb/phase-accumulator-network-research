@@ -31,7 +31,8 @@ smoke:
 	  'base':{'p':11,'k_freqs':3,'n_steps':500,'batch_size':64,\
 	          'log_every':100,'early_stop':False,'use_compile':False},\
 	  'grid':[{'model_kind':'pan','weight_decay':0.01,'label':'pan'},\
-	          {'model_kind':'transformer','weight_decay':1.0,'label':'tf'}]}))"
+	          {'model_kind':'transformer','weight_decay':1.0,'label':'tf'}],\
+	  'plots':['metric_formation_curves','metric_spectra','metric_peak_timescales']}))"
 	python -m pan_lab /tmp/panlab_smoke.yaml
 	@echo "smoke output in /tmp/panlab_smoke/"
 
