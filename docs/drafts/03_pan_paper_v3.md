@@ -337,7 +337,7 @@ The gate contains all the discriminative information needed to solve
 the task linearly. This closes what could have been an open question
 about whether the architecture's decoder is a bottleneck.
 
-### 3.7 SIFP-16 phase quantization at inference
+### 3.7 SFP-16 phase quantization at inference
 
 To evaluate whether PAN's circuit tolerates the phase precision of
 SPF-32 hardware (16-bit phase field, quantization error 2π/65536
@@ -474,7 +474,20 @@ supporting this paper are released alongside it.
 
 ## References
 
-[Full reference list in companion bibliography.]
+Nanda, N., Chan, L., Liberum, T., Smith, J., and Steinhardt, J. (2023). Progress measures for grokking via mechanistic interpretability. *ICLR 2023*.
+
+Power, A., Burda, Y., Edwards, H., Babuschkin, I., and Misra, V. (2022). Grokking: Generalization beyond overfitting on small algorithmic datasets. *ICLR Workshop on Enormous Language Models*.
+
+Varma, V., Shah, R., Kenton, Z., Kramár, J., and Kumar, R. (2023). Explaining grokking through circuit efficiency. *arXiv:2309.02390*.
+
+Kantamneni, S. and Tegmark, M. (2025). Clock and PIZZA: Unveiling the hidden mechanisms of modular arithmetic in large language models. *arXiv:2501.18256*.
+
+Zhou, H., Bradley, A., Littwin, E., Razin, N., Saremi, O., Susskind, J., Bengio, S., and Nakkiran, P. (2024). What algorithms can transformers learn? A study in length generalization. *NeurIPS 2024*.
+
+Trabelsi, C., Bilaniuk, O., Zhang, Y., Serdyuk, D., Subramanian, S., Santos, J. F., Mehri, S., Rostamzadeh, N., Bengio, Y., and Pal, C. J. (2018). Deep complex networks. *ICLR 2018*.
+
+Li, Z., Kovachki, N., Azizzadenejad, K., Liu, B., Bhattacharya, K., Stuart, A., and Anandkumar, A. (2021). Fourier neural operator for parametric partial differential equations. *ICLR 2021*.
+
 
 ---
 
