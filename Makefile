@@ -8,7 +8,8 @@
 .PHONY: install test plan smoke example \
         compare tier3 slot_census k8_sweep dw_sweep wd_sweep primes \
         held_out_primes freq_init decoder_swap sifp16 mod_mul mod_two_step \
-        tf_sweep paper clean
+        tf_sweep k_census primes_primary_k init_random_primary_k \
+        paper clean
 
 install:
 	v run pip install -e .
@@ -52,15 +53,22 @@ mod_mul:          ;  python -m pan_lab experiments/mod_mul.yaml
 mod_two_step:     ;  python -m pan_lab experiments/mod_two_step.yaml
 tf_sweep:         ;  python -m pan_lab experiments/tf_sweep.yaml
 
-# The paper submission checklist: everything needed to close Phase 0.
-#   tier3          — Task 0.1 mechanistic equivalence
-#   slot_census    — Exp A, direct answer to §5.1
-#   k8_sweep       — Task 0.2, the K=8 anomaly
-#   freq_init      — Exp H, the cleanest mechanistic test
-#   decoder_swap   — Exp I, canonical-Fourier-circuit proof
-#   sifp16         — Exp E, hardware relevance
-#   held_out_primes — Reviewer robustness
-paper: tier3 slot_census k8_sweep freq_init decoder_swap sifp16 held_out_primes
+k_census:              ;  python -m pan_lab experiments/k_census_n20.yaml
+primes_primary_k:      ;  python -m pan_lab experiments/primes_primary_k.yaml
+init_random_primary_k: ;  python -m pan_lab experiments/init_random_primary_k.yaml
+
+# The paper submission checklist: rebuilds §3.3–3.8 with proper sample sizes.
+#   k_census              — Sweep 1 (§3.8 rebuild, feeds §3.3/§3.6/§3.7)
+#   primes_primary_k      — Sweep 2 (§3.5 with 3 seeds per prime)
+#   init_random_primary_k — Sweep 3 (§3.4 at new primary K, random arm)
+#   tier3                 — §5.1 mechanistic equivalence (single-seed deep dive)
+#   decoder_swap          — Exp I, canonical-Fourier-circuit proof
+#
+# Dependency: Sweeps 2 and 3 use k_freqs=10 (predicted primary K).
+# After Sweep 1 completes, if the minimum-reliable K differs, edit
+# k_freqs in primes_primary_k.yaml and init_random_primary_k.yaml
+# before running those targets.
+paper: k_census primes_primary_k init_random_primary_k tier3 decoder_swap
 	@echo "Paper-submission experiment set complete. Output in results/"
 
 paper-followup:

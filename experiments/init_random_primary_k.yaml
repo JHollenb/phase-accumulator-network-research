@@ -1,0 +1,33 @@
+# Init ablation at primary K, random arm only.
+# Paired with Sweep 1's fourier arm at the same K and seed grid
+# → §3.4 comparison across 20 seeds per init. k_freqs=10 mirrors
+# Sweep 2 — update if Sweep 1 picks a different primary K.
+experiment: grid_sweep
+out_dir:    results/init_random_primary_k
+
+base:
+  p:                113
+  k_freqs:          10
+  n_steps:          100000
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  freq_init:        random
+  log_every:        500
+  early_stop:       false
+  save_model:       true
+
+grid:
+  seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+
+options:
+  ablations:       false
+  slots:           true
+  hooks:           [checkpoint_logger]
+  metrics:         true
+  metrics_spectra: true
+
+plots:
+  - {type: slot_census, title: "Slot census (random init)  —  P=113 K=10"}
+  - {type: training_curves, title: "Random init curves"}
+  - {type: metric_formation_curves, title: "Metric formation curves (random init)"}
