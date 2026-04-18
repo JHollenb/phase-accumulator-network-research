@@ -235,6 +235,17 @@ class ExperimentReporter:
         return paths
 
     # ──────────────────────────────────────────────────────────────
+    def flush(self) -> dict:
+        """
+        Write all buffered CSVs + manifest.json to disk. Idempotent —
+        safe to call after every added run so partial progress survives
+        a crash or keyboard interrupt.
+        """
+        paths = self.write_all()
+        paths["manifest.json"] = self.write_manifest()
+        return paths
+
+    # ──────────────────────────────────────────────────────────────
     def write_manifest(self) -> str:
         """
         Scan out_dir and write manifest.json listing every artifact.

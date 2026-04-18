@@ -87,6 +87,7 @@ def _run_cfgs(
     metrics_gate_decode_max_rows=4000,
     metrics_logit_spectrum=False,
     metrics_logit_spectrum_classes=None,
+    post_run_hook=None,
 ):
     """
     Shared engine for every registered experiment: take a list of
@@ -139,7 +140,12 @@ def _run_cfgs(
             path = save_model_weights(result, out_dir)
             print(f"  saved model weights: {path}")
 
-    rep.write_all()
+        # Stream the accumulated CSVs + manifest to disk after each run
+        # so a crash or ^C mid-sweep doesn't discard completed work.
+        rep.flush()
+        if post_run_hook is not None:
+            post_run_hook(rep)
+
     rep.print_summary()
     return rep
 
@@ -207,10 +213,13 @@ def exp_sifp16_inference(base: RunConfig, out_dir: str,
             "delta":           acc_q - acc_fp,
         })
 
-    # Write the quantization report alongside the standard CSVs.
+        # Stream per-seed: rewrite the bespoke CSV + flush standard ones
+        # so a crash after seed N preserves seeds 0..N.
+        pd.DataFrame(quant_rows).to_csv(
+            os.path.join(out_dir, "quant_eval.csv"), index=False)
+        rep.flush()
+
     quant_df = pd.DataFrame(quant_rows)
-    rep.write_all()
-    quant_df.to_csv(os.path.join(out_dir, "quant_eval.csv"), index=False)
     print("\n── SIFP-16 quantization eval ──")
     print(quant_df.to_string(index=False))
     rep.write_manifest()
@@ -281,9 +290,13 @@ def exp_decoder_swap(base: RunConfig, out_dir: str,
             "delta":                   acc_swap - acc_learned,
         })
 
+        # Stream per-seed: rewrite the bespoke CSV + flush standard ones
+        # so a crash after seed N preserves seeds 0..N.
+        pd.DataFrame(swap_rows).to_csv(
+            os.path.join(out_dir, "decoder_swap.csv"), index=False)
+        rep.flush()
+
     swap_df = pd.DataFrame(swap_rows)
-    rep.write_all()
-    swap_df.to_csv(os.path.join(out_dir, "decoder_swap.csv"), index=False)
     print("\n── Decoder-swap eval ──")
     print(swap_df.to_string(index=False))
     rep.write_manifest()
@@ -638,6 +651,16 @@ def exp_decoder_analysis(base: RunConfig, out_dir: str,
     recovery_rows: list[dict] = []
     spectrum_rows: list[dict] = []
 
+    def _flush_bespoke() -> None:
+        """Rewrite the three per-seed CSVs + flush ExperimentReporter."""
+        pd.DataFrame(summary_rows).to_csv(
+            os.path.join(out_dir, "decoder_analysis.csv"), index=False)
+        pd.DataFrame(recovery_rows).to_csv(
+            os.path.join(out_dir, "decoder_recovery_curve.csv"), index=False)
+        pd.DataFrame(spectrum_rows).to_csv(
+            os.path.join(out_dir, "decoder_residual_spectrum.csv"), index=False)
+        rep.flush()
+
     for cfg in cfgs:
         tx, ty, vx, vy = make_modular_dataset(
             p=cfg.p, task_kind=cfg.task_kind,
@@ -662,6 +685,7 @@ def exp_decoder_analysis(base: RunConfig, out_dir: str,
                 "grokked":    False,
                 "acc_learned": acc_learned,
             })
+            _flush_bespoke()
             continue
 
         # ── 1. Extract circuit parameters ──
@@ -813,18 +837,9 @@ def exp_decoder_analysis(base: RunConfig, out_dir: str,
               f"explained={explained_frac:.2%}  "
               f"n_extras={n_extras_needed}")
 
-    rep.write_all()
-    summary_df  = pd.DataFrame(summary_rows)
-    recovery_df = pd.DataFrame(recovery_rows)
-    spectrum_df = pd.DataFrame(spectrum_rows)
+        _flush_bespoke()
 
-    summary_df.to_csv(os.path.join(out_dir, "decoder_analysis.csv"),
-                       index=False)
-    recovery_df.to_csv(
-        os.path.join(out_dir, "decoder_recovery_curve.csv"), index=False)
-    spectrum_df.to_csv(
-        os.path.join(out_dir, "decoder_residual_spectrum.csv"), index=False)
-
+    summary_df = pd.DataFrame(summary_rows)
     print("\n── Decoder analysis summary ──")
     if len(summary_df):
         print(summary_df.to_string(index=False))

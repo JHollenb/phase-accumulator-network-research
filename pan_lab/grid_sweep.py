@@ -230,6 +230,12 @@ def run_grid_sweep(
 
     reporter_name = name or os.path.basename(os.path.normpath(out_dir)) or "grid_sweep"
 
+    spectra_enabled = options.get("metrics_spectra", True)
+    post_run_hook = (
+        (lambda r: _write_spectra(r, out_dir, verbose=False))
+        if spectra_enabled else None
+    )
+
     rep = _run_cfgs(
         cfgs,
         reporter_name,
@@ -243,9 +249,10 @@ def run_grid_sweep(
         metrics_gate_decode_max_rows   = options.get("metrics_gate_decode_max_rows", 4000),
         metrics_logit_spectrum         = options.get("metrics_logit_spectrum", False),
         metrics_logit_spectrum_classes = options.get("metrics_logit_spectrum_classes", None),
+        post_run_hook                  = post_run_hook,
     )
 
-    if not dry_run and options.get("metrics_spectra", True):
+    if not dry_run and spectra_enabled:
         _write_spectra(rep, out_dir)
 
     if not dry_run and plots:
@@ -259,7 +266,7 @@ def run_grid_sweep(
 # ─────────────────────────────────────────────────────────────────────────────
 # Post-hoc spectra writer
 # ─────────────────────────────────────────────────────────────────────────────
-def _write_spectra(rep, out_dir: str) -> None:
+def _write_spectra(rep, out_dir: str, verbose: bool = True) -> None:
     """
     Compute per-(run, metric) DFTs of the metrics time series and write
     `metrics_spectra.csv` (long spectrum) + `metrics_peaks.csv` (one row
@@ -278,5 +285,6 @@ def _write_spectra(rep, out_dir: str) -> None:
     pk = os.path.join(out_dir, "metrics_peaks.csv")
     spectra_df.to_csv(sp, index=False)
     summarize_metrics_spectra(spectra_df).to_csv(pk, index=False)
-    print(f"  [spectra] wrote metrics_spectra.csv ({len(spectra_df)} rows) "
-          f"+ metrics_peaks.csv")
+    if verbose:
+        print(f"  [spectra] wrote metrics_spectra.csv ({len(spectra_df)} rows) "
+              f"+ metrics_peaks.csv")
