@@ -320,8 +320,8 @@ P=113.
 extension over seeds 20–58 (6/39 = 15.4%); the extended sample shifts the
 floor estimate downward.
 
-(Sources: `data/20260418_paper_results/k_census_n20_fourier/runs.csv`,
-`data/20260418_paper_results/k_census_n20_random/runs.csv`,
+(Sources: `data/20260418_paper_results/k_census_n20/runs.csv`
+(base Fourier sweep), `data/20260418_paper_results/k_census_n20_random/runs.csv`,
 `data/20260418_paper_results/paper_k5_extended/runs.csv`,
 `data/20260418_paper_results/paper_k13_fourier/runs.csv`,
 `data/20260418_paper_results/paper_k13_random/runs.csv`. Two-tailed p-values from
@@ -394,10 +394,12 @@ mixing/gate stack.
 
 **Comparison to K=10 Fourier init.** A matched K=10 *Fourier-init* sweep
 on the same prime set (`data/20260418_paper_results/primes_primary_k/`) groks
-**22 of 24 seeds (88%)**, with single-seed failures at P=89 and P=113.
-The +12-percentage-point random-init advantage observed at P=113 in §3.4
-generalizes across primes: the under-parameterized-transition story is
-not P=113-specific.
+**20 of 24 seeds (83%)**, with per-prime grok rates 2/3 at P=89, 2/3 at
+P=113, and 1/3 at P=127 (all other primes 3/3 — 4 seed-level failures
+in total). The +16.7-percentage-point aggregate random-init advantage
+(100% vs 83.3% across the cross-prime set) generalizes the P=113
+transition-band result from §3.4: the under-parameterized-transition
+story is not P=113-specific.
 
 **P=97 is not a capacity wall.** v3 of this paper hypothesized that
 P=97 represented a hard capacity limit at K=9; that hypothesis is not
@@ -464,10 +466,11 @@ degrade the circuit PAN learns.
 
 ### 3.8 K-sweep reliability: three regimes
 
-Combining the K-census data from both initializations
-(`k_census_n20_fourier`, `k_census_n20_random`,
-`paper_k5_extended`, `paper_k13_fourier`, `paper_k13_random`), the
-reliability curve at P=113 separates into three regimes:
+Combining the K-census data from both initializations (Fourier grok
+rates are from the base `k_census_n20` sweep; random grok rates from
+`k_census_n20_random`, plus `paper_k5_extended`, `paper_k13_fourier`,
+and `paper_k13_random` for the edge cells), the reliability curve at
+P=113 separates into three regimes:
 
 | K      | Fourier grok    | Random grok       | Regime                        |
 |--------|-----------------|-------------------|-------------------------------|
@@ -572,7 +575,7 @@ projection of the trained decoder onto the gate-induced basis (as
 opposed to the encoder-frequency-induced basis) is the natural
 follow-up.
 
-![Figure 7 — Decoder variants on three grokked K=9 seeds. The learned decoder and an optimal linear decoder fit to the gate output both reach ≈0.99 val_acc; substituting a Fourier decoder built from learned encoder frequencies collapses accuracy to near chance (§3.6, §4.1).](figs_v5/fig_s36_decoder_comparison.png)
+![Figure 7 — Decoder variants on the two grokked K=9 seeds measured by both the decoder-analysis and decoder-swap experiments (seeds 42, 123; strict same-run comparison). The learned decoder and an optimal linear decoder fit to the gate output both reach ≈0.99 val_acc; substituting a Fourier decoder built from learned encoder frequencies collapses accuracy to near chance (§3.6, §4.1). Seed 789 is omitted because the decoder-swap experiment did not run on it.](figs_v5/fig_s36_decoder_comparison.png)
 
 ### 4.2 Extension beyond modular addition
 
@@ -619,9 +622,9 @@ gate activations). 16-bit phase quantization at inference preserves
 accuracy to within 0.3% in the worst case we tested and to zero
 measurable loss in fully grokked seeds. The cross-prime story
 strengthens under random init: **at K=10 random, all 24 of 24
-cross-prime seeds grok**, eliminating the v4 P=89 and P=113 single-
-seed failures that arose under K=10 Fourier (22/24 = 88% — preserved
-in §3.5 as a baseline). The P=97 capacity-wall hypothesis from v3 of
+cross-prime seeds grok**, eliminating the four K=10 Fourier seed
+failures at P=89, P=113, and P=127 (20/24 = 83% — preserved in §3.5
+as a baseline). The P=97 capacity-wall hypothesis from v3 of
 this paper does not survive the K=10 sweep, and is further refuted
 by three matched 500K-step P=97 runs that early-stop on grok at the
 same step as the 100K budget.

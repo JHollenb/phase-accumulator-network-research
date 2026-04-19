@@ -34,7 +34,8 @@ Every paper claim is backed by a CSV under `data/20260418_paper_results/`. The r
 data/20260418_paper_results/
 ├── compare/                     §3.1   PAN vs Transformer head-to-head
 ├── tier3/                       §3.2   seed=42 deep dive (runs, ablations, metrics)
-├── k_census_n20_fourier/        §3.3   n=20 slot census, K=6..10, Fourier init
+├── k_census_n20/                §3.3/§3.8  base n=20 slot census, K=6..12, Fourier init (source for §3.8 Fourier grok rates)
+├── k_census_n20_fourier/        (alias of k_census_n20; kept for back-compat)
 ├── k_census_n20_random/         §3.4   K-sweep reliability, random init
 ├── paper_k5_extended/           §3.4   K=5 extended (seeds 20-58) for 11/59 pooled stat
 ├── paper_k13_fourier/           §3.4   K=13 Fourier reliability (n=21)
@@ -101,15 +102,15 @@ m["decoder_fourier_peak_mean"].max(), m.loc[m["decoder_fourier_peak_mean"].idxma
 
 ### §3.3 — n=20 slot census at K=9 Fourier
 
-**Data:** `data/20260418_paper_results/k_census_n20_fourier/` (`runs.csv` + `metrics.csv`).
+**Data:** `data/20260418_paper_results/k_census_n20/` (`runs.csv` + `metrics.csv`). This is the base Fourier K-sweep; `k_census_n20_fourier/` is an alias kept for back-compat and resolves to the same CSVs.
 
 ```python
 import pandas as pd, re
-runs = pd.read_csv("data/20260418_paper_results/k_census_n20_fourier/runs.csv")
+runs = pd.read_csv("data/20260418_paper_results/k_census_n20/runs.csv")
 k9 = runs[runs.k_freqs==9]
 print("K=9:", len(k9), "grokked:", k9.grokked.sum())
 
-metrics = pd.read_csv("data/20260418_paper_results/k_census_n20_fourier/metrics.csv")
+metrics = pd.read_csv("data/20260418_paper_results/k_census_n20/metrics.csv")
 last = metrics.sort_values("step").groupby("run_id").tail(1)
 grok_ids = set(k9[k9.grokked]["run_id"])
 lg = last[last.run_id.isin(grok_ids)]
@@ -255,8 +256,9 @@ Every directory has a `manifest.json` with the full provenance block (`git_sha`,
 |---|---|
 | `compare/`                   | `experiments/compare.yaml` |
 | `tier3/`                     | `experiments/tier3.yaml` |
-| `k_census_n20_fourier/`      | `experiments/k_census_n20_fourier.yaml` |
-| `k_census_n20_random/`       | `experiments/k_census_n20_random.yaml` |
+| `k_census_n20/`              | `experiments/k_census_n20.yaml` (base sweep, Fourier init — source of §3.8 Fourier K=6..12 rates) |
+| `k_census_n20_fourier/`      | alias of `k_census_n20/` (same CSVs) |
+| `k_census_n20_random/`       | `experiments/k_census_n20.yaml` with `freq_init: random` |
 | `paper_k5_extended/`         | `experiments/paper_k5_extended.yaml` |
 | `paper_k13_fourier/`         | `experiments/paper_k13_fourier.yaml` |
 | `paper_k13_random/`          | `experiments/paper_k13_random.yaml` |
@@ -277,19 +279,18 @@ All paper figures are produced from the CSVs above by the registered plot functi
 
 ## 6. Discrepancies between paper and data
 
-Three numbers in the paper do not match what the CSVs show. Each is small, but each should be either corrected in the paper or substantiated from a different dataset if one was intended.
+Three numbers in the paper were found not to match what the CSVs show. Each is small, but each should be either corrected in the paper or substantiated from a different dataset if one was intended. §6.1 has since been reconciled in the paper prose; §6.2 and §6.3 remain open.
 
-### 6.1 §3.5 — Fourier K=10 cross-prime reliability
+### 6.1 §3.5 — Fourier K=10 cross-prime reliability ✅ reconciled
 
-- **Paper says:** 22 / 24 grokked at K=10 Fourier (→ "+12pp random-init advantage" vs 24/24 random).
+- **Paper now says:** 20 / 24 grokked at K=10 Fourier (+16.7pp random-init advantage). Prose and Figure 6 caption agree.
 - **Data says:** 20 / 24 grokked. Source: `data/20260418_paper_results/primes_primary_k/runs.csv`.
 - **Failing seeds:** P89-s0 (peak_val_acc 0.398), P113-s0 (0.652), P127-s0 (0.310), P127-s1 (0.901).
-- **Implied correction:** 20/24 = 83.3%; random vs Fourier advantage is **+16.7pp**, not +12pp.
 
 ### 6.2 §3.3 — "five of fourteen" at compliance == 1.00
 
 - **Paper says:** "five of the fourteen grokked seeds have clock_compliance == 1.000."
-- **Data says:** seven do (seeds 3, 5, 10, 12, 13, 15, 16). Source: last-step row of `data/20260418_paper_results/k_census_n20_fourier/metrics.csv`, filtered to the 14 K=9 grokked runs.
+- **Data says:** seven do (seeds 3, 5, 10, 12, 13, 15, 16). Source: last-step row of `data/20260418_paper_results/k_census_n20/metrics.csv`, filtered to the 14 K=9 grokked runs.
 - **Implied correction:** "seven of the fourteen."
 
 ### 6.3 §3.4 — K=13 Fourier median grok step

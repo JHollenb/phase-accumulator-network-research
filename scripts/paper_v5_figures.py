@@ -140,8 +140,8 @@ def fig_decoder_fourier_dynamics() -> None:
 
 # ─── F4 ────────────────────────────────────────────────────────────────────
 def fig_slot_census() -> None:
-    runs = pd.read_csv(DATA_ROOT / "k_census_n20_fourier" / "runs.csv")
-    metrics = pd.read_csv(DATA_ROOT / "k_census_n20_fourier" / "metrics.csv")
+    runs = pd.read_csv(DATA_ROOT / "k_census_n20" / "runs.csv")
+    metrics = pd.read_csv(DATA_ROOT / "k_census_n20" / "metrics.csv")
     k9_grok = runs[(runs.k_freqs == 9) & runs.grokked]
     last = metrics.sort_values("step").groupby("run_id").tail(1)
     last = last[last.run_id.isin(k9_grok.run_id)].copy()
@@ -175,7 +175,7 @@ def fig_slot_census() -> None:
 
 # ─── F5 ────────────────────────────────────────────────────────────────────
 def fig_k_sweep_reliability() -> None:
-    fourier = pd.read_csv(DATA_ROOT / "k_census_n20_fourier" / "runs.csv")
+    fourier = pd.read_csv(DATA_ROOT / "k_census_n20" / "runs.csv")
     random = pd.read_csv(DATA_ROOT / "k_census_n20_random" / "runs.csv")
     k13_f = pd.read_csv(DATA_ROOT / "paper_k13_fourier" / "runs.csv")
     k13_r = pd.read_csv(DATA_ROOT / "paper_k13_random" / "runs.csv")
@@ -284,8 +284,15 @@ def fig_cross_prime() -> None:
 def fig_decoder_comparison() -> None:
     da = pd.read_csv(DATA_ROOT / "decoder_analysis" / "decoder_analysis.csv")
     sw = pd.read_csv(DATA_ROOT / "decoder_swap" / "decoder_swap.csv")
-    da = da[da.grokked].copy()  # seeds 42, 123, 789
+    da = da[da.grokked].copy()  # grokked in analysis: seeds 42, 123, 789
     sw = sw.rename(columns={"val_acc_fourier_decoder": "acc_fourier_swap"})
+
+    # Strict same-run comparison: use only seeds measured by BOTH
+    # experiments. decoder_analysis's grokked set is {42, 123, 789};
+    # decoder_swap covers {42, 123, 456}. Intersection = {42, 123}.
+    shared = sorted(set(da.seed) & set(sw.seed))
+    da = da[da.seed.isin(shared)]
+    sw = sw[sw.seed.isin(shared)]
 
     rows = []
     for _, r in da.iterrows():
@@ -293,9 +300,7 @@ def fig_decoder_comparison() -> None:
         rows.append((r.seed, "clock-only", r.acc_clock_only))
         rows.append((r.seed, "gate-optimal linear", r.gate_optimal_acc))
     for _, r in sw.iterrows():
-        # only include Fourier-swap rows for seeds that also appear in `da`
-        if r.seed in set(da.seed):
-            rows.append((r.seed, "Fourier-swap decoder", r.acc_fourier_swap))
+        rows.append((r.seed, "Fourier-swap decoder", r.acc_fourier_swap))
 
     df = pd.DataFrame(rows, columns=["seed", "decoder", "val_acc"])
     order = ["clock-only", "Fourier-swap decoder", "learned decoder", "gate-optimal linear"]
@@ -306,14 +311,14 @@ def fig_decoder_comparison() -> None:
         "gate-optimal linear": "#2b7a3e",
     }
 
-    fig, ax = plt.subplots(figsize=(9, 4.2))
+    fig, ax = plt.subplots(figsize=(8, 4.2))
     sns.barplot(df, x="seed", y="val_acc", hue="decoder",
-                order=sorted(df.seed.unique()), hue_order=order,
+                order=shared, hue_order=order,
                 palette=palette, ax=ax)
     ax.set_ylim(0, 1.18)
-    ax.set_xlabel("seed (P=113, K=9, grokked)")
+    ax.set_xlabel(f"seed (P=113, K=9, grokked; n={len(shared)} runs measured by both experiments)")
     ax.set_ylabel("val_acc")
-    ax.set_title("§3.6 / §4.1  Decoder variants on three grokked seeds\n"
+    ax.set_title("§3.6 / §4.1  Decoder variants on same-run grokked seeds\n"
                  "learned & gate-optimal ≈ 0.99 ; Fourier-swap & clock-only collapse")
     ax.legend(title="decoder", loc="upper center", fontsize=8,
               ncols=4, bbox_to_anchor=(0.5, 1.0), frameon=False)
