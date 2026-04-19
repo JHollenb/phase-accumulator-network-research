@@ -436,14 +436,14 @@ at step 95K, still rising). Whatever the trained decoder is doing
 beyond a Fourier projection (§4.1), it is not exploiting all the
 discriminative structure already present in the gate.
 
-### 3.7 SIFP-16 phase quantization at inference
+### 3.7 SFP-16 phase quantization at inference
 
 To evaluate whether PAN's circuit tolerates the phase precision of
 SPF-32 hardware (16-bit phase field, quantization error 2π/65536
 ≈ 9.6 × 10⁻⁵ rad), we quantize every phase output to 16-bit
 precision at inference and re-evaluate:
 
-| Seed | fp32 val_acc | SIFP-16 val_acc | Δ      |
+| Seed | fp32 val_acc | SFP-16 val_acc | Δ      |
 |------|--------------|------------------|--------|
 | 42   | 99.23%       | 99.23%           | 0.000  |
 | 123  | 99.14%       | 99.14%           | 0.000  |
@@ -452,7 +452,7 @@ precision at inference and re-evaluate:
 **16-bit phase quantization is effectively free.** The seed-456 run
 had not fully completed post-grok cleanup (val_acc 94.4% at
 termination); even this undertrained model loses only 0.3% accuracy
-at SIFP-16. Fully grokked runs show zero quantization loss to four
+at SFP-16. Fully grokked runs show zero quantization loss to four
 decimal places, and the seed=42 deep dive in §3.2 confirms this
 holds throughout the post-grok regime: by step 95K, `quant_delta`
 = 0.0000.

@@ -120,19 +120,18 @@ def fig_decoder_fourier_dynamics() -> None:
     peak_step = 2_500
     ax.axvline(peak_step, color=C_PAN, ls=":", lw=1.2, alpha=0.7)
     ax.axvline(grok_step, color="black", ls="--", lw=1.2, alpha=0.7)
-    ax.annotate("M8 peak 0.87 @ 2,500", xy=(peak_step, 0.87),
-                xytext=(peak_step * 1.25, 0.55), fontsize=8, color=C_PAN,
-                arrowprops=dict(arrowstyle="->", color=C_PAN, lw=0.8))
-    ax.annotate("grok @ 16,500", xy=(grok_step, 1.0),
-                xytext=(grok_step * 1.4, 0.4), fontsize=8, color="black",
-                arrowprops=dict(arrowstyle="->", color="black", lw=0.8))
+    ax.text(peak_step * 1.08, 1.09, "M8 peak 0.87 @ step 2,500",
+            fontsize=8, color=C_PAN, va="bottom", ha="left")
+    ax.text(grok_step * 1.08, 1.09, "grok @ step 16,500",
+            fontsize=8, color="black", va="bottom", ha="left")
 
     ax.set_xscale("log")
     ax.set_xlabel("training step (log)")
     ax.set_ylabel("metric value")
-    ax.set_ylim(-0.02, 1.08)
+    ax.set_ylim(-0.02, 1.2)
     ax.set_xlim(10, 1.1e5)
-    ax.set_title("§3.2 / §4.1  seed=42 dynamics: decoder Fourier structure peaks early, then decays")
+    ax.set_title("§3.2 / §4.1  seed=42 dynamics: decoder Fourier structure peaks early, then decays",
+                 pad=14)
     ax.legend(loc="center left", framealpha=0.9, fontsize=8)
     fig.tight_layout()
     fig.savefig(OUT_DIR / "fig_s32_decoder_fourier_dynamics.png", bbox_inches="tight")
