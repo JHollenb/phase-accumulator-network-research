@@ -1,0 +1,59 @@
+# Cross-prime robustness at primary K.
+# 8 primes × 3 seeds = 24 runs at 100K, plus P=97 × 3 seeds at
+# 500K (27 runs total). Replaces the single-seed §3.5 table.
+# k_freqs=10 is the predicted primary K from Sweep 1. Update if
+# Sweep 1's minimum-reliable K (≥85% grok rate) differs.
+experiment: grid_sweep
+out_dir:    results/paper_cross_primes
+
+base:
+  k_freqs:          10
+  n_steps:          100000
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  freq_init:        random
+  log_every:        500
+  early_stop:       true
+  save_model:       true
+
+# List-of-dicts so P=97 can use 500K while others use base's 100K.
+grid:
+  - {p: 43,  seed: 0}
+  - {p: 43,  seed: 1}
+  - {p: 43,  seed: 2}
+  - {p: 59,  seed: 0}
+  - {p: 59,  seed: 1}
+  - {p: 59,  seed: 2}
+  - {p: 67,  seed: 0}
+  - {p: 67,  seed: 1}
+  - {p: 67,  seed: 2}
+  - {p: 71,  seed: 0}
+  - {p: 71,  seed: 1}
+  - {p: 71,  seed: 2}
+  - {p: 89,  seed: 0}
+  - {p: 89,  seed: 1}
+  - {p: 89,  seed: 2}
+  - {p: 97,  seed: 0}
+  - {p: 97,  seed: 1}
+  - {p: 97,  seed: 2}
+  - {p: 113, seed: 0}
+  - {p: 113, seed: 1}
+  - {p: 113, seed: 2}
+  - {p: 127, seed: 0}
+  - {p: 127, seed: 1}
+  - {p: 127, seed: 2}
+  - {p: 97,  seed: 0, n_steps: 500000, label: p97-long-s0}
+  - {p: 97,  seed: 1, n_steps: 500000, label: p97-long-s1}
+  - {p: 97,  seed: 2, n_steps: 500000, label: p97-long-s2}
+
+options:
+  ablations:       false
+  slots:           true
+  metrics:         true
+  metrics_spectra: true
+
+plots:
+  - {type: sweep_reliability, group_by: p,
+     filename: reliability.png,
+     title: "Cross-prime reliability (n=3 per P)  —  K=10"}
+  - {type: training_curves, title: "Cross-prime training curves"}

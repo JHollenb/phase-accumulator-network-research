@@ -1,0 +1,42 @@
+# K transition census — rebuilds §3.8 and feeds §3.3/§3.6/§3.7.
+# K∈{6..12} × 20 seeds × 100K steps, no early stop. Full
+# instrumentation (slots, metrics, checkpoint_logger) so every
+# grokked seed contributes to §3.3 Clock compliance, §3.6
+# gate-vs-decoder, §3.7 SIFP-16, and training-dynamics analysis.
+# Total: 140 runs.
+experiment: grid_sweep
+out_dir:    results/k4_run
+
+base:
+  p:                113
+  n_steps:          200000
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  freq_init:        random
+  log_every:        500
+  early_stop:       false
+  save_model:       true
+
+grid:
+  k_freqs: [4]
+  seed:    [0, 1, 56, 6, 7, 15]
+
+options:
+  ablations:               false
+  slots:                   true
+  hooks:                   [checkpoint_logger]
+  metrics:                 true
+  metrics_expensive_every: 5000
+  metrics_spectra:         true
+
+plots:
+  - {type: sweep_reliability, group_by: k_freqs,
+     filename: reliability.png,
+     title: "K census (n=20 per K)  —  P=113"}
+  - {type: training_curves, title: "K census curves"}
+  - {type: slot_census, title: "Slot census across K"}
+  - {type: metric_formation_curves, title: "Metric formation curves"}
+  - {type: metric_spectra,          title: "Metric DFT spectra"}
+  - {type: metric_peak_timescales,  title: "Metric peak timescales"}
+  - {type: freq_trajectories}
+  - {type: freq_err_trajectories}

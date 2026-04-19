@@ -5,22 +5,21 @@
 # gate-vs-decoder, §3.7 SIFP-16, and training-dynamics analysis.
 # Total: 140 runs.
 experiment: grid_sweep
-out_dir:    results/k_census_n20
+out_dir:    results/k_census_n20_random
 
 base:
   p:                113
   n_steps:          100000
   weight_decay:     0.01
   diversity_weight: 0.01
-  freq_init:        fourier
+  freq_init:        random
   log_every:        500
   early_stop:       false
   save_model:       true
 
 grid:
-  k_freqs: [6, 7, 8, 9, 10, 11, 12]
-  seed:    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-            10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+  k_freqs: [1,2,3,4,5, 6, 7, 8, 9, 10, 11, 12,13,14,15,16,17,18,19,20]
+  seed:    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
 
 options:
   ablations:               false
