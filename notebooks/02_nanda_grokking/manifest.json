@@ -1,0 +1,25 @@
+{
+  "experiment": "compare",
+  "n_runs": 2,
+  "provenance": {
+    "timestamp": "2026-04-17T22:25:07",
+    "hostname": "Jakes-MacBook-Pro.local",
+    "platform": "macOS-15.6-arm64-arm-64bit",
+    "python": "3.11.13",
+    "torch": "2.11.0",
+    "cuda": null,
+    "device": "mps",
+    "git_sha": "cacd8fa",
+    "cwd": "/Users/jakeholl/domains/phase-accumulator-network-research",
+    "argv": [
+      "pan_lab",
+      "experiments/compare.yaml"
+    ]
+  },
+  "files": {
+    "runs.csv": "results/compare/runs.csv",
+    "curves.csv": "results/compare/curves.csv",
+    "ablations.csv": "results/compare/ablations.csv",
+    "metrics.csv": "results/compare/metrics.csv"
+  }
+}
