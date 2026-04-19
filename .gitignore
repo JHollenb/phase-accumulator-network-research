@@ -1,7 +1,7 @@
 # Experiment outputs
 results/
 *.png
-!docs/*.png
+!docs/**/*.png
 !.github/*.png
 *.pt
 
