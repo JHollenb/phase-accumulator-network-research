@@ -173,8 +173,9 @@ has been corrected and regression-tested.
 
 ## 3. Experiments
 
-All CSVs, checkpoints, and run metadata are published in the `pan_lab`
-artifact under `interesting_results/`. Training uses batch size 256,
+All CSVs, checkpoints, and run metadata are published as a downloadable
+`pan_lab` artifact that unpacks to `data/20260418_paper_results/`; every
+path below is relative to that directory. Training uses batch size 256,
 a 40%/60% train/val split, and `val_acc ≥ 0.99` as the grokking
 threshold. Metric names follow the M1–M8 conventions defined in
 `docs/metrics.md`: `clock_compliance` (M2), `enc{0,1}_snap_mean` (M1),
@@ -198,6 +199,8 @@ fraction of the parameter budget. Wall-clock is slower due to an
 unoptimized phase-modulo-add on MPS; in SPF hardware the phase add
 would be a single-cycle integer operation.
 
+![Figure 1 — PAN vs 1-layer transformer on modular addition mod 113 (seed=42). PAN uses 172× fewer parameters and matches peak val_acc within 0.14 pp, at the cost of 5.5× more training steps and ~3.3× wall-clock (the phase modulo-add is unoptimized on MPS).](figs_v5/fig_s31_param_efficiency.png)
+
 ### 3.2 Mixing-layer structure at a single grokked seed (P=113, K=9, seed=42)
 
 We train a deep-dive model at seed=42 for 100K steps and inspect the
@@ -215,6 +218,8 @@ trained 9×18 phase-mixing matrix. Grokking occurs at step **16,500**
 
 No component is redundant. Any single-component ablation collapses
 accuracy to near chance.
+
+![Figure 2 — seed=42 ablations. Zeroing phase mixing, randomizing encoder frequencies, or zeroing reference phases each collapses val_acc from 1.00 to < 0.04.](figs_v5/fig_s32_ablations.png)
 
 **Mixing-matrix structure.** At termination, 6 of the 9 output
 channels of this seed exhibit a Clock-pair signature — the top-2
@@ -248,6 +253,8 @@ are also load-bearing for §4.1's open question about decoder structure: the
 "peak then decay" pattern is the strongest hint that the trained decoder is
 not simply settling into a Fourier projection, but actively departing from
 one.
+
+![Figure 3 — seed=42 metric trajectories on log-step axis. decoder_fourier_peak_mean peaks at 0.87 at step 2,500 — well before grok at step 16,500 — and decays to 0.41 by step 99,500. gate_linear_acc continues to climb after val_acc saturates.](figs_v5/fig_s32_decoder_fourier_dynamics.png)
 
 ### 3.3 Slot census across 20 seeds (P=113, K=9, Fourier init)
 
@@ -288,6 +295,8 @@ on the same task (modular addition via sparse Fourier representation)
 and on structurally similar mixing patterns (Clock-shaped pairs at
 matched frequencies), but on different specific frequency subsets.
 
+![Figure 4 — Slot census across the 14 grokked seeds at P=113, K=9, Fourier init. Panel (a): clock_compliance per seed, mean 0.94, with 7/14 seeds at perfect compliance = 1.00. Panel (b): distribution of active Fourier frequencies per seed (mean 3.79).](figs_v5/fig_s33_slot_census.png)
+
 ### 3.4 Initialization × K interaction
 
 Encoder frequency initialization interacts non-trivially with the
@@ -311,11 +320,11 @@ P=113.
 extension over seeds 20–58 (6/39 = 15.4%); the extended sample shifts the
 floor estimate downward.
 
-(Sources: `interesting_results/k_census_n20_fourier/runs.csv`,
-`interesting_results/k_census_n20_random/runs.csv`,
-`interesting_results/paper_k5_extended/runs.csv`,
-`interesting_results/paper_k13_fourier/runs.csv`,
-`interesting_results/paper_k13_random/runs.csv`. Two-tailed p-values from
+(Sources: `data/20260418_paper_results/k_census_n20/runs.csv`
+(base Fourier sweep), `data/20260418_paper_results/k_census_n20_random/runs.csv`,
+`data/20260418_paper_results/paper_k5_extended/runs.csv`,
+`data/20260418_paper_results/paper_k13_fourier/runs.csv`,
+`data/20260418_paper_results/paper_k13_random/runs.csv`. Two-tailed p-values from
 Fisher's exact test on the underlying 2×2 success/failure tables.)
 
 Two patterns survive the larger sample. First, **random initialization
@@ -371,7 +380,7 @@ at a 500K-step budget to test for late-grok effects):
 | 113 | 3/3           |  15,500          | 1,473       | development                  |
 | 127 | 3/3           |  54,000          | 1,627       | development                  |
 
-(Source: `interesting_results/paper_cross_primes/runs.csv`, threshold
+(Source: `data/20260418_paper_results/paper_cross_primes/runs.csv`, threshold
 val_acc ≥ 0.99. Median grok step is over the three seeds per prime;
 peak val_acc for every grokked seed is in [0.990, 1.000].)
 
@@ -384,11 +393,13 @@ linear in P (encoder + decoder embeddings) and constant in the
 mixing/gate stack.
 
 **Comparison to K=10 Fourier init.** A matched K=10 *Fourier-init* sweep
-on the same prime set (`interesting_results/primes_primary_k/`) groks
-**22 of 24 seeds (88%)**, with single-seed failures at P=89 and P=113.
-The +12-percentage-point random-init advantage observed at P=113 in §3.4
-generalizes across primes: the under-parameterized-transition story is
-not P=113-specific.
+on the same prime set (`data/20260418_paper_results/primes_primary_k/`) groks
+**20 of 24 seeds (83%)**, with per-prime grok rates 2/3 at P=89, 2/3 at
+P=113, and 1/3 at P=127 (all other primes 3/3 — 4 seed-level failures
+in total). The +16.7-percentage-point aggregate random-init advantage
+(100% vs 83.3% across the cross-prime set) generalizes the P=113
+transition-band result from §3.4: the under-parameterized-transition
+story is not P=113-specific.
 
 **P=97 is not a capacity wall.** v3 of this paper hypothesized that
 P=97 represented a hard capacity limit at K=9; that hypothesis is not
@@ -400,6 +411,8 @@ hypothesis from v3 (ℤ/97ℤ× has order 96 = 2⁵·3 vs ℤ/113ℤ× has order
 112 = 2⁴·7, and the prime factorization affects which sparse Fourier
 subsets suffice) is testable via a focused K-sweep at P=97; we leave
 that to follow-up work, but at K=10 it is not a load-bearing question.
+
+![Figure 6 — Cross-prime generalization at K=10. Panel (a): per-prime grok rate for each encoder initialization. Panel (b): median grok step over grokked seeds. Random init reaches 24/24 across the eight primes; Fourier init leaves 4 failures at P=89, P=113, P=127.](figs_v5/fig_s35_cross_prime.png)
 
 ### 3.6 Gate representation is linearly sufficient
 
@@ -425,14 +438,14 @@ at step 95K, still rising). Whatever the trained decoder is doing
 beyond a Fourier projection (§4.1), it is not exploiting all the
 discriminative structure already present in the gate.
 
-### 3.7 SIFP-16 phase quantization at inference
+### 3.7 SFP-16 phase quantization at inference
 
 To evaluate whether PAN's circuit tolerates the phase precision of
 SPF-32 hardware (16-bit phase field, quantization error 2π/65536
 ≈ 9.6 × 10⁻⁵ rad), we quantize every phase output to 16-bit
 precision at inference and re-evaluate:
 
-| Seed | fp32 val_acc | SIFP-16 val_acc | Δ      |
+| Seed | fp32 val_acc | SFP-16 val_acc | Δ      |
 |------|--------------|------------------|--------|
 | 42   | 99.23%       | 99.23%           | 0.000  |
 | 123  | 99.14%       | 99.14%           | 0.000  |
@@ -441,7 +454,7 @@ precision at inference and re-evaluate:
 **16-bit phase quantization is effectively free.** The seed-456 run
 had not fully completed post-grok cleanup (val_acc 94.4% at
 termination); even this undertrained model loses only 0.3% accuracy
-at SIFP-16. Fully grokked runs show zero quantization loss to four
+at SFP-16. Fully grokked runs show zero quantization loss to four
 decimal places, and the seed=42 deep dive in §3.2 confirms this
 holds throughout the post-grok regime: by step 95K, `quant_delta`
 = 0.0000.
@@ -449,12 +462,15 @@ holds throughout the post-grok regime: by step 95K, `quant_delta`
 This is the empirical bridge to SPF. Phase quantization does not
 degrade the circuit PAN learns.
 
+![Figure 8 — 16-bit SFP phase quantization at inference preserves val_acc to zero measurable loss on the two fully grokked seeds and 0.3pp on the undertrained seed=456.](figs_v5/fig_s37_sfp16_quant.png)
+
 ### 3.8 K-sweep reliability: three regimes
 
-Combining the K-census data from both initializations
-(`k_census_n20_fourier`, `k_census_n20_random`,
-`paper_k5_extended`, `paper_k13_fourier`, `paper_k13_random`), the
-reliability curve at P=113 separates into three regimes:
+Combining the K-census data from both initializations (Fourier grok
+rates are from the base `k_census_n20` sweep; random grok rates from
+`k_census_n20_random`, plus `paper_k5_extended`, `paper_k13_fourier`,
+and `paper_k13_random` for the edge cells), the reliability curve at
+P=113 separates into three regimes:
 
 | K      | Fourier grok    | Random grok       | Regime                        |
 |--------|-----------------|-------------------|-------------------------------|
@@ -509,6 +525,8 @@ The matched K=5 Fourier sweep — the only un-run cell of the §3.4
 table — remains an open measurement. The three-regime structure
 above is otherwise complete on the K range we have surveyed.
 
+![Figure 5 — K-sweep reliability at P=113, combining both encoder initializations. Error bars are Wilson 95% CIs; shaded bands mark the three regimes. Random init dominates the transition band (K=5–10); both inits converge on the plateau (K≥11).](figs_v5/fig_s34_k_sweep_reliability.png)
+
 ---
 
 ## 4. Open questions
@@ -557,6 +575,8 @@ projection of the trained decoder onto the gate-induced basis (as
 opposed to the encoder-frequency-induced basis) is the natural
 follow-up.
 
+![Figure 7 — Decoder variants on the two grokked K=9 seeds measured by both the decoder-analysis and decoder-swap experiments (seeds 42, 123; strict same-run comparison). The learned decoder and an optimal linear decoder fit to the gate output both reach ≈0.99 val_acc; substituting a Fourier decoder built from learned encoder frequencies collapses accuracy to near chance (§3.6, §4.1). Seed 789 is omitted because the decoder-swap experiment did not run on it.](figs_v5/fig_s36_decoder_comparison.png)
+
 ### 4.2 Extension beyond modular addition
 
 The circuit characterized here solves modular addition through
@@ -602,9 +622,9 @@ gate activations). 16-bit phase quantization at inference preserves
 accuracy to within 0.3% in the worst case we tested and to zero
 measurable loss in fully grokked seeds. The cross-prime story
 strengthens under random init: **at K=10 random, all 24 of 24
-cross-prime seeds grok**, eliminating the v4 P=89 and P=113 single-
-seed failures that arose under K=10 Fourier (22/24 = 88% — preserved
-in §3.5 as a baseline). The P=97 capacity-wall hypothesis from v3 of
+cross-prime seeds grok**, eliminating the four K=10 Fourier seed
+failures at P=89, P=113, and P=127 (20/24 = 83% — preserved in §3.5
+as a baseline). The P=97 capacity-wall hypothesis from v3 of
 this paper does not survive the K=10 sweep, and is further refuted
 by three matched 500K-step P=97 runs that early-stop on grok at the
 same step as the 100K budget.

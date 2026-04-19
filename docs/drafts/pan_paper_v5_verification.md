@@ -2,7 +2,7 @@
 
 **Paper reviewed:** `docs/drafts/05_pan_paper_v5.md`
 **Verification date:** 2026-04-18
-**Verifier:** end-to-end cross-check of every numeric claim against the CSVs consolidated in `interesting_results/`.
+**Verifier:** end-to-end cross-check of every numeric claim against the CSVs consolidated in `data/20260418_paper_results/`.
 
 This report documents (a) where each claim's underlying data now lives, (b) how to reproduce the verification, and (c) the three discrepancies still outstanding between the paper text and the data.
 
@@ -28,13 +28,14 @@ Three claims do not match the data exactly. They are itemised in §6 with exact 
 
 ## 2. Where the data lives
 
-Every paper claim is backed by a CSV under `interesting_results/`. The relevant subdirectories and what they feed:
+Every paper claim is backed by a CSV under `data/20260418_paper_results/`. The relevant subdirectories and what they feed:
 
 ```
-interesting_results/
+data/20260418_paper_results/
 ├── compare/                     §3.1   PAN vs Transformer head-to-head
 ├── tier3/                       §3.2   seed=42 deep dive (runs, ablations, metrics)
-├── k_census_n20_fourier/        §3.3   n=20 slot census, K=6..10, Fourier init
+├── k_census_n20/                §3.3/§3.8  base n=20 slot census, K=6..12, Fourier init (source for §3.8 Fourier grok rates)
+├── k_census_n20_fourier/        (alias of k_census_n20; kept for back-compat)
 ├── k_census_n20_random/         §3.4   K-sweep reliability, random init
 ├── paper_k5_extended/           §3.4   K=5 extended (seeds 20-58) for 11/59 pooled stat
 ├── paper_k13_fourier/           §3.4   K=13 Fourier reliability (n=21)
@@ -63,11 +64,11 @@ All commands below are run from repo root and assume `uv run` as the Python entr
 
 ### §3.1 — PAN vs Transformer head-to-head
 
-**Data:** `interesting_results/compare/runs.csv` (2 rows: `pan`, `tf`).
+**Data:** `data/20260418_paper_results/compare/runs.csv` (2 rows: `pan`, `tf`).
 
 ```python
 import pandas as pd
-df = pd.read_csv("interesting_results/compare/runs.csv")
+df = pd.read_csv("data/20260418_paper_results/compare/runs.csv")
 print(df[["label","model_kind","grok_step","peak_val_acc","elapsed_s","param_count"]])
 ```
 
@@ -80,13 +81,13 @@ Paper §3.1 claim: "PAN groks at step 39,400 (48.7s, 1,319 params, 99.18% peak v
 
 ### §3.2 — seed=42 deep dive
 
-**Data:** `interesting_results/tier3/runs.csv`, `ablations.csv`, `metrics.csv`.
+**Data:** `data/20260418_paper_results/tier3/runs.csv`, `ablations.csv`, `metrics.csv`.
 
 ```python
 import pandas as pd
-pd.read_csv("interesting_results/tier3/runs.csv")[["seed","grok_step","peak_val_acc","param_count"]]
-pd.read_csv("interesting_results/tier3/ablations.csv")
-m = pd.read_csv("interesting_results/tier3/metrics.csv")
+pd.read_csv("data/20260418_paper_results/tier3/runs.csv")[["seed","grok_step","peak_val_acc","param_count"]]
+pd.read_csv("data/20260418_paper_results/tier3/ablations.csv")
+m = pd.read_csv("data/20260418_paper_results/tier3/metrics.csv")
 m.iloc[-1][["step","clock_compliance","active_freq_count","active_freq_set",
             "decoder_fourier_peak_mean"]]
 m["decoder_fourier_peak_mean"].max(), m.loc[m["decoder_fourier_peak_mean"].idxmax(),"step"]
@@ -101,15 +102,15 @@ m["decoder_fourier_peak_mean"].max(), m.loc[m["decoder_fourier_peak_mean"].idxma
 
 ### §3.3 — n=20 slot census at K=9 Fourier
 
-**Data:** `interesting_results/k_census_n20_fourier/` (`runs.csv` + `metrics.csv`).
+**Data:** `data/20260418_paper_results/k_census_n20/` (`runs.csv` + `metrics.csv`). This is the base Fourier K-sweep; `k_census_n20_fourier/` is an alias kept for back-compat and resolves to the same CSVs.
 
 ```python
 import pandas as pd, re
-runs = pd.read_csv("interesting_results/k_census_n20_fourier/runs.csv")
+runs = pd.read_csv("data/20260418_paper_results/k_census_n20/runs.csv")
 k9 = runs[runs.k_freqs==9]
 print("K=9:", len(k9), "grokked:", k9.grokked.sum())
 
-metrics = pd.read_csv("interesting_results/k_census_n20_fourier/metrics.csv")
+metrics = pd.read_csv("data/20260418_paper_results/k_census_n20/metrics.csv")
 last = metrics.sort_values("step").groupby("run_id").tail(1)
 grok_ids = set(k9[k9.grokked]["run_id"])
 lg = last[last.run_id.isin(grok_ids)]
@@ -126,15 +127,15 @@ print("mean active_freq_count:", lg.active_freq_count.mean())
 
 ### §3.4 — K-sweep reliability
 
-**Data:** `interesting_results/k_census_n20_random/runs.csv` (K=1..14, 20 seeds),
-`interesting_results/paper_k5_extended/runs.csv` (K=5, seeds 20–58 for n=39),
-`interesting_results/paper_k13_fourier/runs.csv` (K=13 Fourier, n=21),
-`interesting_results/paper_k13_random/runs.csv` (K=13 random, n=21).
+**Data:** `data/20260418_paper_results/k_census_n20_random/runs.csv` (K=1..14, 20 seeds),
+`data/20260418_paper_results/paper_k5_extended/runs.csv` (K=5, seeds 20–58 for n=39),
+`data/20260418_paper_results/paper_k13_fourier/runs.csv` (K=13 Fourier, n=21),
+`data/20260418_paper_results/paper_k13_random/runs.csv` (K=13 random, n=21).
 
 ```python
 import pandas as pd
-for path in ["interesting_results/paper_k13_fourier/runs.csv",
-             "interesting_results/paper_k13_random/runs.csv"]:
+for path in ["data/20260418_paper_results/paper_k13_fourier/runs.csv",
+             "data/20260418_paper_results/paper_k13_random/runs.csv"]:
     df = pd.read_csv(path)
     g = df[df.grokked]
     print(path, len(df), "grokked", len(g), "median grok_step", g.grok_step.median())
@@ -152,7 +153,7 @@ for path in ["interesting_results/paper_k13_fourier/runs.csv",
 
 ```python
 import pandas as pd
-df = pd.read_csv("interesting_results/paper_cross_primes/runs.csv")
+df = pd.read_csv("data/20260418_paper_results/paper_cross_primes/runs.csv")
 df["grokked"].value_counts()
 df.groupby("label")["grok_step"].median()
 ```
@@ -166,7 +167,7 @@ df.groupby("label")["grok_step"].median()
 
 ```python
 import pandas as pd
-df = pd.read_csv("interesting_results/primes_primary_k/runs.csv")
+df = pd.read_csv("data/20260418_paper_results/primes_primary_k/runs.csv")
 main = df[~df.label.str.startswith("p97-long")]
 print("grokked:", main.grokked.sum(), "/", len(main))
 print(main[~main.grokked][["label","peak_val_acc"]])
@@ -177,11 +178,11 @@ print(main[~main.grokked][["label","peak_val_acc"]])
 
 ### §3.6 — decoder analysis
 
-**Data:** `interesting_results/decoder_analysis/decoder_analysis.csv`.
+**Data:** `data/20260418_paper_results/decoder_analysis/decoder_analysis.csv`.
 
 ```python
 import pandas as pd
-df = pd.read_csv("interesting_results/decoder_analysis/decoder_analysis.csv")
+df = pd.read_csv("data/20260418_paper_results/decoder_analysis/decoder_analysis.csv")
 df[df.grokked][["seed","acc_learned","acc_clock_only","gate_optimal_acc"]]
 ```
 
@@ -195,13 +196,13 @@ All three grokked seeds: gate_optimal_acc ≥ 0.999 while acc_clock_only is well
 
 ### §3.7 — SFP-16 quantization invariance
 
-**Data:** `interesting_results/sifp16_inference/quant_eval.csv`.
+**Data:** `data/20260418_paper_results/sifp16_inference/quant_eval.csv`.
 
 > *Terminology note:* this report refers to the 16-bit integer phase quantization as **SFP** (the paper-facing name). The codebase still uses the internal symbol `SIFP16_QUANT_ERR` (`pan_lab/config.py:38-40`) and the column name `val_acc_sifp16` in `quant_eval.csv`. These are the same quantity — SFP is the external name for what the code calls SIFP-16.
 
 ```python
 import pandas as pd
-pd.read_csv("interesting_results/sifp16_inference/quant_eval.csv")
+pd.read_csv("data/20260418_paper_results/sifp16_inference/quant_eval.csv")
 ```
 
 | seed | val_acc_fp32 | val_acc_sfp (was val_acc_sifp16) | delta |
@@ -214,14 +215,14 @@ Two of three seeds show **zero** drop from FP32 → SFP-16 inference; the worst-
 
 ### §3.8 — K ≤ 4 insufficiency
 
-**Data:** `interesting_results/k4_run/` (K=4, 6 seeds, 200K steps) plus the K=1..4 columns of `interesting_results/k_census_n20_random/runs.csv`.
+**Data:** `data/20260418_paper_results/k4_run/` (K=4, 6 seeds, 200K steps) plus the K=1..4 columns of `data/20260418_paper_results/k_census_n20_random/runs.csv`.
 
 ```python
 import pandas as pd
-df = pd.read_csv("interesting_results/k4_run/runs.csv")
+df = pd.read_csv("data/20260418_paper_results/k4_run/runs.csv")
 print("K=4 long: grokked", df.grokked.sum(), "/", len(df))
 
-df2 = pd.read_csv("interesting_results/k_census_n20_random/runs.csv")
+df2 = pd.read_csv("data/20260418_paper_results/k_census_n20_random/runs.csv")
 df2[df2.k_freqs<=4].groupby("k_freqs")["grokked"].sum()
 ```
 
@@ -230,11 +231,11 @@ df2[df2.k_freqs<=4].groupby("k_freqs")["grokked"].sum()
 
 ### §4.1 — decoder-swap identifiability
 
-**Data:** `interesting_results/decoder_swap/decoder_swap.csv`.
+**Data:** `data/20260418_paper_results/decoder_swap/decoder_swap.csv`.
 
 ```python
 import pandas as pd
-pd.read_csv("interesting_results/decoder_swap/decoder_swap.csv")
+pd.read_csv("data/20260418_paper_results/decoder_swap/decoder_swap.csv")
 ```
 
 | seed | val_acc_pan_decoder | val_acc_fourier_decoder | delta  |
@@ -255,8 +256,9 @@ Every directory has a `manifest.json` with the full provenance block (`git_sha`,
 |---|---|
 | `compare/`                   | `experiments/compare.yaml` |
 | `tier3/`                     | `experiments/tier3.yaml` |
-| `k_census_n20_fourier/`      | `experiments/k_census_n20_fourier.yaml` |
-| `k_census_n20_random/`       | `experiments/k_census_n20_random.yaml` |
+| `k_census_n20/`              | `experiments/k_census_n20.yaml` (base sweep, Fourier init — source of §3.8 Fourier K=6..12 rates) |
+| `k_census_n20_fourier/`      | alias of `k_census_n20/` (same CSVs) |
+| `k_census_n20_random/`       | `experiments/k_census_n20.yaml` with `freq_init: random` |
 | `paper_k5_extended/`         | `experiments/paper_k5_extended.yaml` |
 | `paper_k13_fourier/`         | `experiments/paper_k13_fourier.yaml` |
 | `paper_k13_random/`          | `experiments/paper_k13_random.yaml` |
@@ -271,31 +273,30 @@ Every directory has a `manifest.json` with the full provenance block (`git_sha`,
 
 ## 5. Figures
 
-All paper figures are produced from the CSVs above by the registered plot functions in `pan_lab/plots.py` (dispatched via `PLOT_REGISTRY` in `pan_lab/grid_sweep.py`). `uv run python -m pan_lab --replot interesting_results/<dir>` regenerates every figure from its CSVs without retraining. This has been smoke-tested for `compare/`, `tier3/`, `paper_cross_primes/`, and both `paper_k13_*/` dirs during verification.
+All paper figures are produced from the CSVs above by the registered plot functions in `pan_lab/plots.py` (dispatched via `PLOT_REGISTRY` in `pan_lab/grid_sweep.py`). `uv run python -m pan_lab --replot data/20260418_paper_results/<dir>` regenerates every figure from its CSVs without retraining. This has been smoke-tested for `compare/`, `tier3/`, `paper_cross_primes/`, and both `paper_k13_*/` dirs during verification.
 
 ---
 
 ## 6. Discrepancies between paper and data
 
-Three numbers in the paper do not match what the CSVs show. Each is small, but each should be either corrected in the paper or substantiated from a different dataset if one was intended.
+Three numbers in the paper were found not to match what the CSVs show. Each is small, but each should be either corrected in the paper or substantiated from a different dataset if one was intended. §6.1 has since been reconciled in the paper prose; §6.2 and §6.3 remain open.
 
-### 6.1 §3.5 — Fourier K=10 cross-prime reliability
+### 6.1 §3.5 — Fourier K=10 cross-prime reliability ✅ reconciled
 
-- **Paper says:** 22 / 24 grokked at K=10 Fourier (→ "+12pp random-init advantage" vs 24/24 random).
-- **Data says:** 20 / 24 grokked. Source: `interesting_results/primes_primary_k/runs.csv`.
+- **Paper now says:** 20 / 24 grokked at K=10 Fourier (+16.7pp random-init advantage). Prose and Figure 6 caption agree.
+- **Data says:** 20 / 24 grokked. Source: `data/20260418_paper_results/primes_primary_k/runs.csv`.
 - **Failing seeds:** P89-s0 (peak_val_acc 0.398), P113-s0 (0.652), P127-s0 (0.310), P127-s1 (0.901).
-- **Implied correction:** 20/24 = 83.3%; random vs Fourier advantage is **+16.7pp**, not +12pp.
 
 ### 6.2 §3.3 — "five of fourteen" at compliance == 1.00
 
 - **Paper says:** "five of the fourteen grokked seeds have clock_compliance == 1.000."
-- **Data says:** seven do (seeds 3, 5, 10, 12, 13, 15, 16). Source: last-step row of `interesting_results/k_census_n20_fourier/metrics.csv`, filtered to the 14 K=9 grokked runs.
+- **Data says:** seven do (seeds 3, 5, 10, 12, 13, 15, 16). Source: last-step row of `data/20260418_paper_results/k_census_n20/metrics.csv`, filtered to the 14 K=9 grokked runs.
 - **Implied correction:** "seven of the fourteen."
 
 ### 6.3 §3.4 — K=13 Fourier median grok step
 
 - **Paper says:** median grok step 8,500.
-- **Data says:** 8,000. Source: `interesting_results/paper_k13_fourier/runs.csv`, `grok_step` median over `grokked==True`.
+- **Data says:** 8,000. Source: `data/20260418_paper_results/paper_k13_fourier/runs.csv`, `grok_step` median over `grokked==True`.
 - **Implied correction:** 8,000.
 
 (The K=13 random median of 13,000, the K=5 pooled 11/59, and every cross-prime median are exact.)
@@ -304,7 +305,7 @@ Three numbers in the paper do not match what the CSVs show. Each is small, but e
 
 ## 7. Artifact checklist
 
-Everything referenced in the paper now sits under `interesting_results/`, with 22 subdirectories covering:
+Everything referenced in the paper now sits under `data/20260418_paper_results/`, with 22 subdirectories covering:
 
 - Every §3.1–§4.1 numeric claim (with the three discrepancies in §6).
 - Per-run provenance manifests.
