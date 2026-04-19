@@ -36,7 +36,10 @@ YAML schema (used by grid_sweep):
 """
 from __future__ import annotations
 
+import multiprocessing
 import os
+import shutil
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Callable, Dict, List, Optional
 
 import numpy as np
@@ -88,6 +91,8 @@ def _run_cfgs(
     metrics_logit_spectrum=False,
     metrics_logit_spectrum_classes=None,
     post_run_hook=None,
+    workers: int = 1,
+    hook_names: Optional[List[str]] = None,
 ):
     """
     Shared engine for every registered experiment: take a list of
@@ -99,6 +104,13 @@ def _run_cfgs(
     adds the result (with optional ablations/slots/save_model) to the
     reporter. At the end, the reporter writes all CSVs and prints a
     summary.
+
+    `workers > 1` runs cfgs in a ProcessPoolExecutor (spawn). Each cfg's
+    seed already pins per-run determinism, so parallel and sequential
+    runs produce identical CSVs (modulo row ordering, which the reporter
+    sorts canonically before write). Hook construction in workers uses
+    `hook_names` because the sequential `hook_factory` lambda is not
+    picklable across spawned processes.
     """
     rep = ExperimentReporter(name=name, out_dir=out_dir)
     os.makedirs(out_dir, exist_ok=True)
@@ -107,47 +119,198 @@ def _run_cfgs(
         _print_plan(cfgs, name)
         return rep
 
-    stream_path = os.path.join(out_dir, "curves_stream.csv")
-    if os.path.exists(stream_path):
-        os.remove(stream_path)
+    if workers <= 1:
+        stream_path = os.path.join(out_dir, "curves_stream.csv")
+        if os.path.exists(stream_path):
+            os.remove(stream_path)
 
-    for cfg in cfgs:
-        tx, ty, vx, vy = make_modular_dataset(
-            p=cfg.p, task_kind=cfg.task_kind,
-            train_frac=cfg.train_frac, seed=cfg.seed,
-        )
-        model  = make_model(cfg).to(DEVICE)
-        hooks  = list(hook_factory(cfg)) if hook_factory else []
-        hooks.append(CSVStreamLogger(stream_path, run_id=cfg.display_id()))
-        if metrics and cfg.model_kind == "pan":
-            from pan_lab.metrics import MetricsLogger
-            hooks.append(MetricsLogger(
-                val_x=vx, val_y=vy,
-                expensive_every=metrics_expensive_every,
-                gate_decode_max_rows=metrics_gate_decode_max_rows,
-                logit_spectrum=metrics_logit_spectrum,
-                logit_spectrum_classes=metrics_logit_spectrum_classes,
-            ))
-        result = train(model, cfg, tx, ty, vx, vy, hooks=hooks, verbose=True)
-        rep.add_run(
-            result, val_x=vx, val_y=vy,
-            ablations=ablations and cfg.model_kind == "pan",
-            slots=slots and cfg.model_kind == "pan",
-        )
+        for cfg in cfgs:
+            tx, ty, vx, vy = make_modular_dataset(
+                p=cfg.p, task_kind=cfg.task_kind,
+                train_frac=cfg.train_frac, seed=cfg.seed,
+            )
+            model  = make_model(cfg).to(DEVICE)
+            hooks  = list(hook_factory(cfg)) if hook_factory else []
+            hooks.append(CSVStreamLogger(stream_path, run_id=cfg.display_id()))
+            if metrics and cfg.model_kind == "pan":
+                from pan_lab.metrics import MetricsLogger
+                hooks.append(MetricsLogger(
+                    val_x=vx, val_y=vy,
+                    expensive_every=metrics_expensive_every,
+                    gate_decode_max_rows=metrics_gate_decode_max_rows,
+                    logit_spectrum=metrics_logit_spectrum,
+                    logit_spectrum_classes=metrics_logit_spectrum_classes,
+                ))
+            result = train(model, cfg, tx, ty, vx, vy, hooks=hooks, verbose=True)
+            rep.add_run(
+                result, val_x=vx, val_y=vy,
+                ablations=ablations and cfg.model_kind == "pan",
+                slots=slots and cfg.model_kind == "pan",
+            )
 
-        # ★ NEW: honor cfg.save_model
-        if cfg.save_model:
-            path = save_model_weights(result, out_dir)
-            print(f"  saved model weights: {path}")
+            # ★ NEW: honor cfg.save_model
+            if cfg.save_model:
+                path = save_model_weights(result, out_dir)
+                print(f"  saved model weights: {path}")
 
-        # Stream the accumulated CSVs + manifest to disk after each run
-        # so a crash or ^C mid-sweep doesn't discard completed work.
-        rep.flush()
-        if post_run_hook is not None:
-            post_run_hook(rep)
+            # Stream the accumulated CSVs + manifest to disk after each run
+            # so a crash or ^C mid-sweep doesn't discard completed work.
+            rep.flush()
+            if post_run_hook is not None:
+                post_run_hook(rep)
+
+        rep.print_summary()
+        return rep
+
+    # ── Parallel path ────────────────────────────────────────────────
+    workers_root = os.path.join(out_dir, "_workers")
+    if os.path.isdir(workers_root):
+        shutil.rmtree(workers_root)
+
+    canonical_stream = os.path.join(out_dir, "curves_stream.csv")
+    if os.path.exists(canonical_stream):
+        os.remove(canonical_stream)
+
+    hook_names = list(hook_names or [])
+    print(f"[{name}] running {len(cfgs)} configs across {workers} workers (spawn)")
+
+    ctx = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as pool:
+        futures = {
+            pool.submit(
+                _run_one_cfg,
+                cfg, name, out_dir,
+                hook_names,
+                ablations, slots, metrics,
+                metrics_expensive_every,
+                metrics_gate_decode_max_rows,
+                metrics_logit_spectrum,
+                metrics_logit_spectrum_classes,
+            ): cfg
+            for cfg in cfgs
+        }
+        for future in as_completed(futures):
+            cfg = futures[future]
+            buffers = future.result()
+            _merge_into_reporter(rep, buffers)
+            if buffers.get("saved_model_path"):
+                print(f"  saved model weights: {buffers['saved_model_path']}")
+            rep.flush()
+
+    _merge_worker_streams(out_dir)
+
+    if post_run_hook is not None:
+        post_run_hook(rep)
 
     rep.print_summary()
     return rep
+
+
+def _run_one_cfg(
+    cfg, name, out_dir,
+    hook_names,
+    ablations, slots, metrics,
+    metrics_expensive_every,
+    metrics_gate_decode_max_rows,
+    metrics_logit_spectrum,
+    metrics_logit_spectrum_classes,
+) -> dict:
+    """
+    Worker target (must be importable / picklable for spawn). Trains one
+    cfg in isolation, runs per-cfg analyses (ablations / slots / metrics)
+    inside this process so the parent only does cheap merging, and
+    returns a buffers dict the parent splices into its reporter.
+    """
+    from pan_lab.grid_sweep import HOOK_REGISTRY
+
+    worker_dir  = os.path.join(out_dir, "_workers", cfg.display_id())
+    os.makedirs(worker_dir, exist_ok=True)
+    stream_path = os.path.join(worker_dir, "curves_stream.csv")
+    if os.path.exists(stream_path):
+        os.remove(stream_path)
+
+    tx, ty, vx, vy = make_modular_dataset(
+        p=cfg.p, task_kind=cfg.task_kind,
+        train_frac=cfg.train_frac, seed=cfg.seed,
+    )
+    model = make_model(cfg).to(DEVICE)
+    hooks = [HOOK_REGISTRY[h]() for h in hook_names]
+    hooks.append(CSVStreamLogger(stream_path, run_id=cfg.display_id()))
+    if metrics and cfg.model_kind == "pan":
+        from pan_lab.metrics import MetricsLogger
+        hooks.append(MetricsLogger(
+            val_x=vx, val_y=vy,
+            expensive_every=metrics_expensive_every,
+            gate_decode_max_rows=metrics_gate_decode_max_rows,
+            logit_spectrum=metrics_logit_spectrum,
+            logit_spectrum_classes=metrics_logit_spectrum_classes,
+        ))
+
+    result = train(model, cfg, tx, ty, vx, vy, hooks=hooks, verbose=True)
+
+    mini_rep = ExperimentReporter(name=name, out_dir=worker_dir)
+    mini_rep.add_run(
+        result, val_x=vx, val_y=vy,
+        ablations=ablations and cfg.model_kind == "pan",
+        slots=slots and cfg.model_kind == "pan",
+    )
+
+    saved_model_path = None
+    if cfg.save_model:
+        saved_model_path = save_model_weights(result, out_dir)
+
+    return {
+        "display_id":       cfg.display_id(),
+        "stream_path":      stream_path,
+        "saved_model_path": saved_model_path,
+        "runs":         mini_rep._runs,
+        "curves":       mini_rep._curves,
+        "checkpoints":  mini_rep._checkpoints,
+        "ablations":    mini_rep._ablations,
+        "slots":        mini_rep._slots,
+        "metrics":      mini_rep._metrics,
+        "provenance":   mini_rep._provenance,
+    }
+
+
+def _merge_into_reporter(rep: ExperimentReporter, buffers: dict) -> None:
+    rep._runs.extend(buffers["runs"])
+    rep._curves.extend(buffers["curves"])
+    rep._checkpoints.extend(buffers["checkpoints"])
+    rep._ablations.extend(buffers["ablations"])
+    rep._slots.extend(buffers["slots"])
+    rep._metrics.extend(buffers["metrics"])
+    if rep._provenance is None and buffers.get("provenance") is not None:
+        rep._provenance = buffers["provenance"]
+
+
+def _merge_worker_streams(out_dir: str) -> None:
+    """Concatenate per-worker curves_stream.csv files into one canonical file."""
+    workers_root = os.path.join(out_dir, "_workers")
+    if not os.path.isdir(workers_root):
+        return
+    streams = sorted(
+        os.path.join(workers_root, d, "curves_stream.csv")
+        for d in os.listdir(workers_root)
+        if os.path.exists(os.path.join(workers_root, d, "curves_stream.csv"))
+    )
+    if not streams:
+        return
+
+    import csv
+    with open(os.path.join(out_dir, "curves_stream.csv"), "w", newline="") as out:
+        writer = csv.writer(out)
+        wrote_header = False
+        for path in streams:
+            with open(path, newline="") as inp:
+                reader = csv.reader(inp)
+                header = next(reader, None)
+                if header is None:
+                    continue
+                if not wrote_header:
+                    writer.writerow(header)
+                    wrote_header = True
+                writer.writerows(reader)
 
 # ═════════════════════════════════════════════════════════════════════════════
 # EXPERIMENT DEFINITIONS
@@ -894,10 +1057,18 @@ def run_experiment(
     return fn(base=base, out_dir=out_dir, dry_run=dry_run, **exp_args)
 
 
-def run_from_yaml(path: str, force_dry_run: Optional[bool] = None):
+def run_from_yaml(
+    path: str,
+    force_dry_run: Optional[bool] = None,
+    workers_override: Optional[int] = None,
+):
     name, base, out_dir, dry_run, exp_args = load_experiment_yaml(path)
     if force_dry_run is not None:
         dry_run = force_dry_run
+    if workers_override is not None:
+        opts = dict(exp_args.get("options") or {})
+        opts["workers"] = workers_override
+        exp_args["options"] = opts
     print(f"\n▶ loading {path}: experiment={name!r} out={out_dir} "
           f"dry_run={dry_run}")
     return run_experiment(name, base, out_dir, dry_run, **exp_args)

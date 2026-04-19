@@ -118,6 +118,8 @@ def main(argv=None) -> int:
     p.add_argument("--k", type=int, default=9)
     p.add_argument("--steps", type=int, default=50_000)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--workers", type=int, default=None,
+        help="Run grid sweep with N parallel workers (overrides options.workers).")
 
     args = p.parse_args(argv)
 
@@ -143,7 +145,8 @@ def main(argv=None) -> int:
         p.error("Provide a YAML path, --ad-hoc NAME, --list, or --replot DIR")
 
     run_from_yaml(args.yaml_path,
-                   force_dry_run=True if args.dry_run else None)
+                   force_dry_run=True if args.dry_run else None,
+                   workers_override=args.workers)
     return 0
 
 
