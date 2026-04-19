@@ -388,8 +388,9 @@ def plot_ablation_bars(
 
     fig, ax = plt.subplots(figsize=(8, 4.5))
     x = np.arange(len(agg))
-    ax.bar(x, agg["mean"], yerr=[agg["mean"] - agg["min"],
-                                  agg["max"] - agg["mean"]],
+    yerr_lo = np.clip(agg["mean"] - agg["min"], 0.0, None)
+    yerr_hi = np.clip(agg["max"] - agg["mean"], 0.0, None)
+    ax.bar(x, agg["mean"], yerr=[yerr_lo, yerr_hi],
            color=C_PAN, alpha=0.85, edgecolor="black", linewidth=0.5,
            capsize=4)
     ax.set_xticks(x)
@@ -596,8 +597,8 @@ def plot_metric_peak_timescales(
     agg = agg.sort_values("mean")
     y       = np.arange(len(agg))
     means   = agg["mean"].to_numpy()
-    err_lo  = means - agg["min"].to_numpy()
-    err_hi  = agg["max"].to_numpy() - means
+    err_lo  = np.clip(means - agg["min"].to_numpy(), 0.0, None)
+    err_hi  = np.clip(agg["max"].to_numpy() - means, 0.0, None)
 
     fig, ax = plt.subplots(figsize=(8, 0.45 * len(agg) + 2))
     ax.barh(y, means,

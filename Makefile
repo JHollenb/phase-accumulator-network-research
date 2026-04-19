@@ -71,7 +71,7 @@ init_random_primary_k: ;  python -m pan_lab experiments/init_random_primary_k.ya
 #paper: k_census primes_primary_k init_random_primary_k tier3 decoder_swap
 #	@echo "Paper-submission experiment set complete. Output in results/"
 paper:
-	python -m pan_lab experiments/paper_k13_fourier.yaml
+	#python -m pan_lab experiments/paper_k13_fourier.yaml
 	python -m pan_lab experiments/paper_k13_random.yaml
 	python -m pan_lab experiments/paper_k5_extended.yaml
 	cp -r results/paper_* interesting_results/ 
