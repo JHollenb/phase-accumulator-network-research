@@ -1,0 +1,40 @@
+# WAN bit rotation — a pure permutation over 2^n_bits states.
+#
+# y = rotl(x, r) for fixed r. Per output bit this is an x_{j-r mod n_bits}
+# projection — a single Walsh coefficient with mask = e_{j-r}. Therefore
+# K = n_bits suffices. Also: the transformer baseline has to *discover*
+# the permutation via attention + MLP; WAN should solve it structurally.
+experiment: grid_sweep
+out_dir:    results/wan_rotl
+
+base:
+  model_kind:       wan
+  task_kind:        walsh_rotl
+  n_bits:           8
+  rot_amount:       3
+  train_frac:       0.4
+  n_steps:          30000
+  batch_size:       128
+  lr:               3e-3
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  early_stop:       true
+  grok_threshold:   0.99
+  log_every:        300
+  mask_init:        random
+  p:                256
+
+grid:
+  k_freqs: [4, 8, 12]
+  seed:    [42, 123, 456]
+
+options:
+  ablations: true
+  slots:     false
+  metrics:   false
+
+plots:
+  - {type: training_curves, title: "WAN rotl(x, 3)"}
+  - {type: sweep_reliability, group_by: k_freqs,
+     filename: reliability_k.png,
+     title: "Rotl reliability vs K"}

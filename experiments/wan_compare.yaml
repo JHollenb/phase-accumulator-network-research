@@ -1,0 +1,37 @@
+# WAN vs transformer head-to-head on two representative Walsh tasks.
+#
+# Same job as PAN's compare.yaml: produce the parameter-efficiency
+# figure that anchors the paper's headline number. Transformer uses
+# the Nanda-style weight_decay=1.0 tune; WAN uses weight_decay=0.01.
+experiment: grid_sweep
+out_dir:    results/wan_compare
+
+base:
+  task_kind:        walsh_parity
+  n_bits:           8
+  train_frac:       0.4
+  n_steps:          30000
+  batch_size:       128
+  lr:               3e-3
+  early_stop:       true
+  grok_threshold:   0.99
+  log_every:        300
+  p:                2
+
+grid:
+  # Coupled axes: WAN uses k_freqs + mask_init, transformer uses d_model +
+  # weight_decay. Use list-of-dicts to keep them coupled.
+  - {model_kind: wan, k_freqs: 1, mask_init: random, weight_decay: 0.01, diversity_weight: 0.0, seed: 42,  label: wan-s42}
+  - {model_kind: wan, k_freqs: 1, mask_init: random, weight_decay: 0.01, diversity_weight: 0.0, seed: 123, label: wan-s123}
+  - {model_kind: wan, k_freqs: 1, mask_init: random, weight_decay: 0.01, diversity_weight: 0.0, seed: 456, label: wan-s456}
+  - {model_kind: transformer, d_model: 64, n_heads: 4, d_mlp: 256, weight_decay: 1.0, diversity_weight: 0.0, seed: 42,  label: tf-s42}
+  - {model_kind: transformer, d_model: 64, n_heads: 4, d_mlp: 256, weight_decay: 1.0, diversity_weight: 0.0, seed: 123, label: tf-s123}
+  - {model_kind: transformer, d_model: 64, n_heads: 4, d_mlp: 256, weight_decay: 1.0, diversity_weight: 0.0, seed: 456, label: tf-s456}
+
+options:
+  ablations: true
+  metrics:   false
+
+plots:
+  - {type: training_curves, title: "WAN vs TF on 8-bit parity"}
+  - {type: parameter_efficiency, title: "Param efficiency, WAN vs TF"}

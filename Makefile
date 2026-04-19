@@ -9,6 +9,8 @@
         compare tier3 slot_census k8_sweep dw_sweep wd_sweep primes \
         held_out_primes freq_init decoder_swap sifp16 mod_mul mod_two_step \
         tf_sweep k_census primes_primary_k init_random_primary_k \
+        wan_parity wan_popcount wan_xor wan_rotl wan_compare \
+        wan_mask_init wan_k_sweep wan_all \
         paper clean
 
 install:
@@ -56,6 +58,16 @@ tf_sweep:         ;  python -m pan_lab experiments/tf_sweep.yaml
 k_census:              ;  python -m pan_lab experiments/k_census_n20.yaml
 primes_primary_k:      ;  python -m pan_lab experiments/primes_primary_k.yaml
 init_random_primary_k: ;  python -m pan_lab experiments/init_random_primary_k.yaml
+
+# WAN (Walsh Accumulator Network) experiment targets
+wan_parity:        ;  python -m pan_lab experiments/wan_parity.yaml
+wan_popcount:      ;  python -m pan_lab experiments/wan_popcount_mod4.yaml
+wan_xor:           ;  python -m pan_lab experiments/wan_xor_two.yaml
+wan_rotl:          ;  python -m pan_lab experiments/wan_rotl.yaml
+wan_compare:       ;  python -m pan_lab experiments/wan_compare.yaml
+wan_mask_init:     ;  python -m pan_lab experiments/wan_mask_init_ablation.yaml
+wan_k_sweep:       ;  python -m pan_lab experiments/wan_k_sweep.yaml
+wan_all:           ;  $(MAKE) wan_parity wan_popcount wan_xor wan_rotl wan_compare
 
 # The paper submission checklist: rebuilds §3.3–3.8 with proper sample sizes.
 #   k_census              — Sweep 1 (§3.8 rebuild, feeds §3.3/§3.6/§3.7)

@@ -1,0 +1,43 @@
+# WAN popcount mod 4 — the "non-trivial Walsh spectrum" task.
+#
+# y = (sum_i x_i) mod 4, for x an n_bits integer. Unlike parity, this
+# target has multiple Walsh coefficients: the count of 1s splits into a
+# low-order bit (parity, mask 111..1) and a higher-order component that
+# depends on second-order interactions between bits. The open question
+# from the spec is what minimum K suffices — our prior is K ≈ n_bits,
+# but this YAML lets the data answer.
+experiment: grid_sweep
+out_dir:    results/wan_popcount_mod4
+
+base:
+  model_kind:       wan
+  task_kind:        walsh_popcount_mod
+  mod_base:         4
+  n_bits:           8
+  train_frac:       0.4
+  n_steps:          40000
+  batch_size:       128
+  lr:               3e-3
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  early_stop:       true
+  grok_threshold:   0.99
+  log_every:        500
+  mask_init:        random
+  p:                4
+
+grid:
+  k_freqs: [2, 4, 8, 16]
+  seed:    [42, 123, 456]
+
+options:
+  ablations: true
+  slots:     false
+  metrics:   false
+
+plots:
+  - {type: training_curves, title: "WAN popcount mod 4 — K sweep"}
+  - {type: sweep_reliability, group_by: k_freqs,
+     filename: reliability_k.png,
+     title: "Popcount mod 4 grok-rate vs K"}
+  - {type: ablation_bars, title: "Popcount mod 4 — ablations"}

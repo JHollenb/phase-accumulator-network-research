@@ -1,0 +1,41 @@
+# WAN encoder-init ablation — Walsh analog of PAN's freq_init_ablation.
+#
+# Two questions:
+#   1. Does random mask init grok, or does it need a structural bias?
+#   2. Is the "onehot" init doing the work, or is it neutral?
+#
+# We run the same parity / popcount-mod-4 / xor-subset tasks under
+# onehot, random, and parity inits, with matching hyperparameters.
+experiment: grid_sweep
+out_dir:    results/wan_mask_init_ablation
+
+base:
+  model_kind:       wan
+  task_kind:        walsh_popcount_mod
+  mod_base:         4
+  n_bits:           8
+  k_freqs:          8
+  train_frac:       0.4
+  n_steps:          40000
+  batch_size:       128
+  lr:               3e-3
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  early_stop:       true
+  grok_threshold:   0.99
+  log_every:        500
+  p:                4
+
+grid:
+  mask_init: [onehot, random, parity]
+  seed:      [42, 123, 456, 789, 1024]
+
+options:
+  ablations: true
+  metrics:   false
+
+plots:
+  - {type: training_curves, title: "WAN mask_init ablation (popcount mod 4)"}
+  - {type: sweep_reliability, group_by: mask_init,
+     filename: reliability_mask_init.png,
+     title: "Grok rate by mask_init"}
