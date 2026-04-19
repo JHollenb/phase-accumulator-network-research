@@ -242,6 +242,7 @@ def run_grid_sweep(
         out_dir,
         dry_run,
         hook_factory = hook_factory,
+        hook_names   = hook_names,
         ablations    = options.get("ablations", True),
         slots        = options.get("slots",     False),
         metrics                        = options.get("metrics", True),
@@ -250,6 +251,7 @@ def run_grid_sweep(
         metrics_logit_spectrum         = options.get("metrics_logit_spectrum", False),
         metrics_logit_spectrum_classes = options.get("metrics_logit_spectrum_classes", None),
         post_run_hook                  = post_run_hook,
+        workers                        = int(options.get("workers", 1)),
     )
 
     if not dry_run and spectra_enabled:
