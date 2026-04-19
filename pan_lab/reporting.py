@@ -72,9 +72,10 @@ def run_row(result: TrainResult, experiment: str) -> dict:
         "param_count":      result.param_count,
     }
 
-    # Structural flag: only meaningful for PAN
+    # Structural flag: meaningful for PAN and WAN (both have a mixing layer).
     from pan_lab.models.pan import PhaseAccumulatorNetwork
-    if isinstance(result.model, PhaseAccumulatorNetwork):
+    from pan_lab.models.wan import WalshAccumulatorNetwork
+    if isinstance(result.model, (PhaseAccumulatorNetwork, WalshAccumulatorNetwork)):
         row["mode_collapsed"] = bool(detect_mode_collapse(result.model))
     else:
         row["mode_collapsed"] = False

@@ -1,0 +1,36 @@
+# WAN K sweep on popcount mod 4 — the K-reliability figure analog of
+# PAN's k_sweep.yaml. Produces the "insufficient / transition /
+# plateau" curve for Walsh targets with non-trivial spectrum.
+experiment: grid_sweep
+out_dir:    results/wan_k_sweep
+
+base:
+  model_kind:       wan
+  task_kind:        walsh_popcount_mod
+  mod_base:         4
+  n_bits:           8
+  train_frac:       0.4
+  n_steps:          40000
+  batch_size:       128
+  lr:               3e-3
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  early_stop:       true
+  grok_threshold:   0.99
+  log_every:        500
+  mask_init:        random
+  p:                4
+
+grid:
+  k_freqs: [1, 2, 3, 4, 6, 8, 12, 16]
+  seed:    [42, 123, 456, 789, 1024]
+
+options:
+  ablations: false
+  metrics:   false
+
+plots:
+  - {type: sweep_reliability, group_by: k_freqs,
+     filename: reliability_k.png,
+     title: "WAN popcount-mod-4 reliability vs K"}
+  - {type: training_curves, title: "WAN K sweep curves"}

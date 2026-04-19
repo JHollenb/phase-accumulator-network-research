@@ -73,15 +73,25 @@ class RunConfig:
     # — task —
     p:            int   = 113
     task_kind:    str   = "mod_add"     # mod_add | mod_mul | mod_two_step
+                                        # | walsh_parity | walsh_bit
+                                        # | walsh_xor_subset | walsh_popcount_mod
+                                        # | walsh_xor | walsh_rotl
     train_frac:   float = 0.4
+    # Walsh-task knobs — ignored for modular tasks.
+    n_bits:       int   = 8             # input bit width (WAN)
+    mod_base:     int   = 4             # popcount_mod target modulus
+    xor_mask:     int   = 0             # bit mask for walsh_xor_subset (0 -> default)
+    bit_index:    int   = 0             # target bit for walsh_bit
+    rot_amount:   int   = 3             # rotation count for walsh_rotl
 
     # — model —
-    model_kind:   str   = "pan"         # pan | transformer
-    k_freqs:      int   = 9             # PAN only
+    model_kind:   str   = "pan"         # pan | wan | transformer
+    k_freqs:      int   = 9             # PAN/WAN — number of channels
     d_model:      int   = 128           # Transformer only
     n_heads:      int   = 4             # Transformer only
     d_mlp:        int   = 512           # Transformer only
     freq_init:    str   = "fourier"     # fourier | random — PAN encoder init
+    mask_init:    str   = "onehot"      # onehot | random | parity — WAN encoder init
 
     # — optim —
     batch_size:       int   = 256

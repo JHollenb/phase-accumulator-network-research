@@ -48,7 +48,7 @@ import yaml
 import pandas as pd
 
 from pan_lab.config     import DEVICE, RunConfig, TWO_PI
-from pan_lab.data       import make_modular_dataset
+from pan_lab.data       import make_modular_dataset, make_dataset_from_cfg
 from pan_lab.hooks      import CSVStreamLogger
 from pan_lab.models     import make_model
 from pan_lab.models.quantize import apply_sifp16_to_pan
@@ -125,10 +125,7 @@ def _run_cfgs(
             os.remove(stream_path)
 
         for cfg in cfgs:
-            tx, ty, vx, vy = make_modular_dataset(
-                p=cfg.p, task_kind=cfg.task_kind,
-                train_frac=cfg.train_frac, seed=cfg.seed,
-            )
+            tx, ty, vx, vy = make_dataset_from_cfg(cfg)
             model  = make_model(cfg).to(DEVICE)
             hooks  = list(hook_factory(cfg)) if hook_factory else []
             hooks.append(CSVStreamLogger(stream_path, run_id=cfg.display_id()))
@@ -229,10 +226,7 @@ def _run_one_cfg(
     if os.path.exists(stream_path):
         os.remove(stream_path)
 
-    tx, ty, vx, vy = make_modular_dataset(
-        p=cfg.p, task_kind=cfg.task_kind,
-        train_frac=cfg.train_frac, seed=cfg.seed,
-    )
+    tx, ty, vx, vy = make_dataset_from_cfg(cfg)
     model = make_model(cfg).to(DEVICE)
     hooks = [HOOK_REGISTRY[h]() for h in hook_names]
     hooks.append(CSVStreamLogger(stream_path, run_id=cfg.display_id()))

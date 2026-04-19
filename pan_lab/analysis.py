@@ -20,6 +20,7 @@ import torch.nn.functional as F
 
 from pan_lab.config import SIFP16_QUANT_ERR, TWO_PI
 from pan_lab.models.pan import PhaseAccumulatorNetwork
+from pan_lab.models.wan import WalshAccumulatorNetwork
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -85,31 +86,54 @@ def ablation_test(
 
     out["baseline"] = _acc()
 
-    if not isinstance(model, PhaseAccumulatorNetwork):
-        return out
+    if isinstance(model, PhaseAccumulatorNetwork):
+        # 1. Zero phase mixing
+        with torch.no_grad():
+            saved = model.phase_mix.weight.data.clone()
+            model.phase_mix.weight.data.zero_()
+            out["zero_phase_mixing"] = _acc()
+            model.phase_mix.weight.data.copy_(saved)
 
-    # 1. Zero phase mixing
-    with torch.no_grad():
-        saved = model.phase_mix.weight.data.clone()
-        model.phase_mix.weight.data.zero_()
-        out["zero_phase_mixing"] = _acc()
-        model.phase_mix.weight.data.copy_(saved)
+        # 2. Randomize frequencies (every encoder)
+        with torch.no_grad():
+            saved_freqs = [enc.freq.data.clone() for enc in model.encoders]
+            for enc in model.encoders:
+                enc.freq.data = torch.rand_like(enc.freq.data) * TWO_PI
+            out["randomize_frequencies"] = _acc()
+            for enc, s in zip(model.encoders, saved_freqs):
+                enc.freq.data.copy_(s)
 
-    # 2. Randomize frequencies (every encoder)
-    with torch.no_grad():
-        saved_freqs = [enc.freq.data.clone() for enc in model.encoders]
-        for enc in model.encoders:
-            enc.freq.data = torch.rand_like(enc.freq.data) * TWO_PI
-        out["randomize_frequencies"] = _acc()
-        for enc, s in zip(model.encoders, saved_freqs):
-            enc.freq.data.copy_(s)
+        # 3. Zero reference phases (gate becomes constant 0.5)
+        with torch.no_grad():
+            saved_ref = model.phase_gate.ref_phase.data.clone()
+            model.phase_gate.ref_phase.data.zero_()
+            out["zero_ref_phases"] = _acc()
+            model.phase_gate.ref_phase.data.copy_(saved_ref)
 
-    # 3. Zero reference phases (gate becomes constant 0.5)
-    with torch.no_grad():
-        saved_ref = model.phase_gate.ref_phase.data.clone()
-        model.phase_gate.ref_phase.data.zero_()
-        out["zero_ref_phases"] = _acc()
-        model.phase_gate.ref_phase.data.copy_(saved_ref)
+    elif isinstance(model, WalshAccumulatorNetwork):
+        # 1. Zero Walsh mixing
+        with torch.no_grad():
+            saved = model.walsh_mix.weight.data.clone()
+            model.walsh_mix.weight.data.zero_()
+            out["zero_walsh_mixing"] = _acc()
+            model.walsh_mix.weight.data.copy_(saved)
+
+        # 2. Randomize encoder masks (the WAN "frequency" analog).
+        # Replace logits with gaussian noise so sigmoid(m) becomes random.
+        with torch.no_grad():
+            saved_logits = [enc.mask_logits.data.clone() for enc in model.encoders]
+            for enc in model.encoders:
+                enc.mask_logits.data = torch.randn_like(enc.mask_logits.data)
+            out["randomize_masks"] = _acc()
+            for enc, s in zip(model.encoders, saved_logits):
+                enc.mask_logits.data.copy_(s)
+
+        # 3. Zero gate reference — Walsh gate becomes constant 0.5 of cos(0)=1
+        with torch.no_grad():
+            saved_ref = model.walsh_gate.ref_v.data.clone()
+            model.walsh_gate.ref_v.data.zero_()
+            out["zero_ref_v"] = _acc()
+            model.walsh_gate.ref_v.data.copy_(saved_ref)
 
     if verbose:
         for name, acc in out.items():
@@ -119,12 +143,17 @@ def ablation_test(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_mode_collapse(model: PhaseAccumulatorNetwork) -> bool:
+def detect_mode_collapse(model) -> bool:
     """
     True if the mixing layer has collapsed — every one of the K output
-    channels is dominated by the same input slot.
+    channels is dominated by the same input slot. Handles PAN and WAN.
     """
-    W = model.phase_mix.weight.detach().cpu().numpy()           # (K, n_inputs*K)
+    if isinstance(model, PhaseAccumulatorNetwork):
+        W = model.phase_mix.weight.detach().cpu().numpy()
+    elif isinstance(model, WalshAccumulatorNetwork):
+        W = model.walsh_mix.weight.detach().cpu().numpy()
+    else:
+        return False
     dominant = [int(np.argmax(np.abs(row))) for row in W]
     return len(set(dominant)) == 1
 

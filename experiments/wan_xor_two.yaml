@@ -1,0 +1,44 @@
+# WAN XOR of two inputs — the most direct analog of PAN's mod_add.
+#
+# (a, b) -> a XOR b, for a, b ∈ {0,1}^n_bits. Output is 2^n_bits classes
+# (the full XOR output). Per-output-bit this is a 1-coeff Walsh target
+# (mask = e_i on both inputs), so n_bits independent channels suffice;
+# the expected minimum K is exactly n_bits.
+#
+# This is the equivalent of mod_add's "K channels = K clock pairs"
+# structure: each Walsh channel j picks bit j from each input, mixes
+# them with W = [1, 1], and the gate fires when they agree.
+experiment: grid_sweep
+out_dir:    results/wan_xor_two
+
+base:
+  model_kind:       wan
+  task_kind:        walsh_xor
+  n_bits:           6                # 64x64 = 4096 (a,b) pairs
+  train_frac:       0.4
+  n_steps:          30000
+  batch_size:       128
+  lr:               3e-3
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  early_stop:       true
+  grok_threshold:   0.99
+  log_every:        300
+  mask_init:        random
+  p:                64              # 2^n_bits, label cardinality
+
+grid:
+  k_freqs: [4, 6, 8, 12]
+  seed:    [42, 123, 456]
+
+options:
+  ablations: true
+  slots:     false
+  metrics:   false
+
+plots:
+  - {type: training_curves, title: "WAN a XOR b (n_bits=6)"}
+  - {type: sweep_reliability, group_by: k_freqs,
+     filename: reliability_k.png,
+     title: "XOR-two reliability vs K"}
+  - {type: ablation_bars, title: "XOR-two — ablations"}

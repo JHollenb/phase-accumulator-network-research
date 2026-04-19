@@ -1,0 +1,41 @@
+# WAN parity task — Walsh analog of PAN's single-prime mod_add run.
+#
+# y = XOR over all bits of x  (a single Walsh coefficient at mask 111...1).
+# Minimum circuit is K=1: one mask = all-ones, one gate, binary decoder.
+# Parity init verifies end-to-end training mechanics; random init is
+# the actual grokking test (the one that must discover the "all-ones"
+# mask on its own).
+experiment: grid_sweep
+out_dir:    results/wan_parity
+
+base:
+  model_kind:       wan
+  task_kind:        walsh_parity
+  n_bits:           8
+  k_freqs:          1
+  train_frac:       0.4
+  n_steps:          20000
+  batch_size:       128
+  lr:               3e-3
+  weight_decay:     0.01
+  diversity_weight: 0.0          # K=1 -> Gram penalty is degenerate
+  early_stop:       true
+  grok_threshold:   0.99
+  log_every:        200
+  p:                2             # label cardinality for the reporter
+
+grid:
+  mask_init: [onehot, random, parity]
+  seed:      [42, 123, 456, 789, 1024]
+
+options:
+  ablations: true
+  slots:     false
+  metrics:   false                # MetricsLogger is PAN-only
+
+plots:
+  - {type: training_curves, title: "WAN parity (n_bits=8)"}
+  - {type: sweep_reliability, group_by: mask_init,
+     filename: reliability_mask_init.png,
+     title: "WAN parity reliability vs mask_init"}
+  - {type: ablation_bars, title: "WAN parity — ablations"}
