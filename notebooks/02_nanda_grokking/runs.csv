@@ -1,0 +1,3 @@
+run_id,experiment,label,p,task_kind,model_kind,k_freqs,d_model,seed,weight_decay,diversity_weight,freq_init,n_steps_planned,n_steps_actual,grok_step,grokked,final_val_acc,peak_val_acc,final_train_loss,final_val_loss,elapsed_s,param_count,mode_collapsed
+pan-0862ac9440,compare,pan,113,mod_add,pan,9,128,42,0.01,0.01,fourier,50000,16200,16200,True,0.9900808930397034,0.9900808930397034,0.9625058174133301,0.951883852481842,25.330366849899292,1319,False
+tf-88648a7fb8,compare,tf,113,mod_add,transformer,9,128,42,1.0,0.01,fourier,50000,8400,8400,True,0.9924301505088806,0.9924301505088806,0.030966293066740036,0.0657842829823494,16.283273220062256,227200,False
