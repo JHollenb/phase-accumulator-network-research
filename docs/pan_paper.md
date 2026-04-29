@@ -336,13 +336,15 @@ Fourier holds a slight edge at K=11/K=12 (95% vs 85%) which reverses
 to a 5-pp random advantage at K=13 (95.2% vs 90.5%). The plateau-region
 gap is too small to support a recommendation purely on grok rate.
 
-Random initialization is also slower to grok by a factor of 1.5–2.3×
-in the transition band (median grok step 19,000 at K=10 random vs 23,500
-at K=10 Fourier; 48,500 at K=7 random vs 28,500 at K=7 Fourier — but only
-9/20 Fourier seeds reach grok at all at K=7, so the "faster" Fourier seeds
-are selection-biased). At K=13 the speed gap reverses but stays small:
-median grok step **8,000 (Fourier) vs 13,000 (random)** — Fourier is
-faster on the plateau, mirroring K=11/K=12.
+The speed story varies across the transition band. At K=7, among the
+9/20 Fourier seeds that do grok, median grok step is 28,500 vs 48,500
+for random — Fourier is 1.7× faster, but this is selection-biased:
+the 11/20 Fourier seeds that never grok are excluded from the median.
+At K=10 the relationship inverts: random is both more reliable (90% vs
+55%) **and** faster, with median grok step 19,000 vs 23,500 for Fourier.
+At K=13 Fourier regains a speed edge: median grok step **8,000 (Fourier)
+vs 13,000 (random)** — Fourier is faster on the plateau, consistent
+with K=11/K=12.
 
 The interpretation we offer: **Fourier initialization places encoder
 frequencies on the integer lattice from step 0; the network then has
@@ -417,8 +419,10 @@ that to follow-up work, but at K=10 it is not a load-bearing question.
 
 We examine what information the PAN gate output contains by fitting
 a multinomial logistic regression decoder directly to the gate
-activations across all P² input pairs, for three grokked seeds at
-P=113, K=9:
+activations across all P² input pairs, for three K=9 seeds at P=113
+(seeds 42 and 123 are fully grokked; seed 456 is undertrained,
+val_acc 94.4%, included to probe whether gate linearity holds before
+full grokking):
 
 | Seed | PAN's trained decoder | Optimal linear decoder on gates | Gap     |
 |------|----------------------|----------------------------------|---------|

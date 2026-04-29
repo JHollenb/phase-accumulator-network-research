@@ -167,7 +167,10 @@ snap, the forward pass is exact Walsh character arithmetic.
 
 ## 3. Experiments
 
-All CSVs are in `results/wan_*/runs.csv`. Training: AdamW lr=3e-3,
+All run data is in `results/wan_*/runs.csv` in the companion artifact
+(not committed to the repository; reproduced by running each
+`experiments/wan_*.yaml`; provenance captured in each
+`results/wan_*/manifest.json`). Training: AdamW lr=3e-3,
 weight_decay=0.01, diversity_weight=0.01, batch_size=128, train_frac=0.4,
 val_acc ≥ 0.99 as the grokking threshold. Every run's seed
 deterministically selects the train/val split and initial weights.
@@ -195,7 +198,8 @@ fraction of the steps.
 ### 3.2 Parity — init sensitivity at K_min
 
 `wan_parity.yaml` sweeps mask_init ∈ {onehot, random, parity} at K=1
-on 6-bit parity (n_bits=6, p=2), 5 seeds per init, 3,000-step budget:
+on 8-bit parity (n_bits=8, p=2), 5 seeds per init, 20,000-step budget
+(early-stop at val_acc ≥ 0.99):
 
 | mask_init | Grokked (n/5) | Grok steps  | Final val_acc |
 |-----------|---------------|-------------|---------------|
@@ -219,8 +223,8 @@ reachability.
 ### 3.3 K-reliability sweep
 
 `wan_k_sweep.yaml` sweeps K ∈ {1, 2, 3, 4, 6, 8, 12, 16} on
-popcount-mod-4 (n_bits=6, p=4), 5 seeds per K, 5,000-step budget,
-random mask init:
+popcount-mod-4 (n_bits=8, p=4), 5 seeds per K, 40,000-step budget
+(early-stop at val_acc ≥ 0.99), random mask init:
 
 | K  | Grokked (n/5) | Grok steps  | Regime           |
 |----|---------------|-------------|------------------|
@@ -260,8 +264,9 @@ spectral rank of the target.
 threshold is exact. Two-input XOR over n_bits=6 requires 6 Walsh
 characters — one per bit position, one per input — and K must be
 at least n_bits to represent them independently. Below the threshold,
-accuracy plateaus near 47% (close to chance for 64 classes), with no
-late-grok in any run.
+accuracy plateaus near 47% — well above chance (1/64 ≈ 1.6% for 64
+classes), indicating the network learns partial structure but cannot
+generalize to all input pairs. No late-grok occurs in any K=4 run.
 
 This mirrors PAN's insufficient regime exactly. The K threshold is
 not a hyperparameter artifact; it is the Walsh spectral rank of the
@@ -284,9 +289,12 @@ r=3, n_bits=6 (dataset: all 4,096 (a,b) pairs), K ∈ {4,6,8,12},
 | 8  | 3/3 (100%)    | 5,100–6,900  | Tighter than XOR-two         |
 | 12 | 3/3 (100%)    | 1,800–4,200  | Fast convergence             |
 
-The **K threshold is identical to XOR-two**: K=4 fails (or barely
-passes), K≥6 = n_bits succeeds reliably. Yet WAN was not told the
-rotation offset r=3. The structural solution requires encoder_b's
+The effective K threshold aligns with XOR-two: reliable grokking
+requires K ≥ n_bits = 6. K=4 shows a partial result on rotl (2/3
+seeds grok) vs clean failure on XOR-two (0/3), reflecting higher
+variance at the marginal K — the third rotl seed at K=4 fails cleanly,
+and K=4 is below the n_bits=6 spectral rank. K≥6 succeeds 100% on both
+tasks. Yet WAN was not told the rotation offset r=3. The structural solution requires encoder_b's
 masks to be cyclically shifted relative to encoder_a's masks by 3
 bit positions. WAN discovers this shift autonomously — grokking
 implies the network found a valid Walsh character decomposition of the
@@ -300,7 +308,8 @@ descent, not through any inductive bias specific to rotation.
 ### 3.6 Init ablation at sufficient K
 
 `wan_mask_init_ablation.yaml` sweeps mask_init ∈ {onehot, random, parity}
-at K=8 on popcount-mod-4 (n_bits=6), 5 seeds per init, 5,000-step budget.
+at K=8 on popcount-mod-4 (n_bits=8), 5 seeds per init, 40,000-step budget
+(early-stop at val_acc ≥ 0.99).
 K=8 is surplus relative to popcount-mod-4's low Walsh rank:
 
 | mask_init | Grokked (n/5) | Grok steps | Val accuracy |
