@@ -145,6 +145,15 @@ class RunConfig:
         if unknown:
             import warnings
             warnings.warn(f"Unknown RunConfig fields ignored: {sorted(unknown)}")
+        # Coerce float fields: PyYAML parses bare scientific notation (e.g.
+        # "3e-3") as strings; a decimal point ("3.0e-3") forces float.
+        # Defensive coercion here prevents a silent TypeError in the trainer.
+        float_fields = {
+            f.name for f in dataclasses.fields(cls) if f.type in (float, "float")
+        }
+        for key in float_fields:
+            if key in kwargs and isinstance(kwargs[key], str):
+                kwargs[key] = float(kwargs[key])
         return cls(**kwargs)
 
     def with_overrides(self, **kwargs) -> "RunConfig":

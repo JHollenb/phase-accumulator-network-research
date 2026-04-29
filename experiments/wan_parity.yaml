@@ -16,7 +16,7 @@ base:
   train_frac:       0.4
   n_steps:          20000
   batch_size:       128
-  lr:               3e-3
+  lr:               3.0e-3
   weight_decay:     0.01
   diversity_weight: 0.0          # K=1 -> Gram penalty is degenerate
   early_stop:       true

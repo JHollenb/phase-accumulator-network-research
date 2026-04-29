@@ -14,7 +14,7 @@ git SHA, torch version, device, timestamp).
 ```
 cd pan_lab
 pip install -e .
-pytest                    # 108 tests, ~10s on CPU
+pytest                    # 131 tests, ~10s on CPU
 ```
 
 `torch`, `numpy`, `pandas`, `matplotlib`, `tabulate`, and `pyyaml` are the only
@@ -66,9 +66,17 @@ post-training analysis.
 | `mod_mul` | **Exp B**: modular multiplication | 3 runs |
 | `mod_two_step` | **Exp C**: (a+b)·c mod P | 3 runs |
 | `tf_sweep` | Minimum transformer d_model | 15 runs |
+| `wan_parity` | WAN: 8-bit parity, mask_init comparison | 15 runs |
+| `wan_popcount_mod4` | WAN: popcount mod 4, K sweep | 12 runs |
+| `wan_xor_two` | WAN: (a, b) → a XOR b, K sweep | 12 runs |
+| `wan_rotl` | WAN: `a XOR rotl(b,r)` — rotation discovery | 12 runs |
+| `wan_compare` | WAN vs transformer head-to-head | 6 runs |
+| `wan_mask_init_ablation` | WAN encoder-init sensitivity | 15 runs |
+| `wan_k_sweep` | WAN K-reliability vs popcount-mod-4 | 40 runs |
 
 "Exp X" labels reference the experiment-ideas table from the
 critical review — the ones the paper needs before submission.
+WAN experiments establish the F_2^n analog of every PAN sweep.
 Additional local sweeps may live in `experiments/` but aren't part of
 the paper set.
 
@@ -79,7 +87,7 @@ Every experiment writes (at minimum) these to its `out_dir`:
 **runs.csv** — one row per training run.
 ```
 run_id, experiment, label, p, task_kind, model_kind, k_freqs, d_model,
-seed, weight_decay, diversity_weight, freq_init,
+seed, weight_decay, diversity_weight, freq_init, mask_init,
 n_steps_planned, n_steps_actual, grok_step, grokked,
 final_val_acc, peak_val_acc, final_train_loss, final_val_loss,
 elapsed_s, param_count, mode_collapsed
@@ -142,20 +150,21 @@ spectra CSVs, saved model checkpoints) are included.
 pan_lab/
 ├── pan_lab/
 │   ├── config.py          RunConfig, constants, provenance capture
-│   ├── data.py            mod_add, mod_mul, mod_two_step datasets
+│   ├── data.py            mod_add, mod_mul, mod_two_step, walsh_* datasets
 │   ├── models/
 │   │   ├── pan.py         PhaseEncoder, PhaseMixingLayer, PhaseGate, PAN
+│   │   ├── wan.py         WalshEncoder, WalshMixingLayer, WalshGate, WAN
 │   │   ├── transformer.py Nanda 1-layer baseline
 │   │   └── quantize.py    SIFP-16 straight-through quantizer
 │   ├── trainer.py         generic loop, hooks, seed discipline
 │   ├── hooks.py           CheckpointLogger, CSVStreamLogger
-│   ├── analysis.py        ablations, freq errors, slot census
+│   ├── analysis.py        ablations (PAN + WAN), freq errors, slot census
 │   ├── reporting.py       ExperimentReporter, pandas aggregation, CSV
 │   ├── plots.py           matplotlib figures (consume DataFrames only)
 │   ├── experiments.py     EXPERIMENT_REGISTRY + YAML loader + bespoke exps
 │   ├── grid_sweep.py      generic sweep: base + grid + options + plots
 │   └── cli.py             python -m pan_lab entry
-├── experiments/           21 YAML specs
+├── experiments/           28 YAML specs (21 PAN/TF + 7 WAN)
 ├── tests/                 108 pytest tests, ~10s on CPU
 └── pyproject.toml
 ```

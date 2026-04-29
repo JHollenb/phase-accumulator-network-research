@@ -1,5 +1,5 @@
 """
-pan_lab.analysis — post-hoc mechanistic analysis of a trained PAN.
+pan_lab.analysis — post-hoc mechanistic analysis of trained PAN / WAN models.
 
 Functions here never mutate the model's state (they save/restore around
 ablations) and they never depend on a particular experiment's config.
@@ -12,7 +12,7 @@ stays flat.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -64,15 +64,15 @@ def compute_frequency_errors(
 
 # ─────────────────────────────────────────────────────────────────────────────
 def ablation_test(
-    model: PhaseAccumulatorNetwork,
+    model: Union[PhaseAccumulatorNetwork, WalshAccumulatorNetwork],
     val_x: torch.Tensor,
     val_y: torch.Tensor,
     verbose: bool = False,
 ) -> Dict[str, float]:
     """
-    Zero out each PAN component and measure the val-accuracy drop.
-    Confirms that phase arithmetic is the active mechanism rather than
-    a decoder shortcut.
+    Zero out each model component and measure the val-accuracy drop.
+    Confirms that the core arithmetic mechanism (phase for PAN, Walsh
+    character for WAN) is active rather than a decoder shortcut.
 
     Returns a dict of {intervention_name: val_acc_after_intervention}.
     """

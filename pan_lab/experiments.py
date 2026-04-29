@@ -141,7 +141,7 @@ def _run_cfgs(
             result = train(model, cfg, tx, ty, vx, vy, hooks=hooks, verbose=True)
             rep.add_run(
                 result, val_x=vx, val_y=vy,
-                ablations=ablations and cfg.model_kind == "pan",
+                ablations=ablations and cfg.model_kind in ("pan", "wan"),
                 slots=slots and cfg.model_kind == "pan",
             )
 
@@ -245,7 +245,7 @@ def _run_one_cfg(
     mini_rep = ExperimentReporter(name=name, out_dir=worker_dir)
     mini_rep.add_run(
         result, val_x=vx, val_y=vy,
-        ablations=ablations and cfg.model_kind == "pan",
+        ablations=ablations and cfg.model_kind in ("pan", "wan"),
         slots=slots and cfg.model_kind == "pan",
     )
 

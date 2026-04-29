@@ -174,9 +174,20 @@ def test_walsh_rotl_labels_correct():
     assert (ty.cpu().numpy() == expected).all()
 
 
+def test_walsh_rotl_xor_labels_correct():
+    cfg = RunConfig(model_kind="wan", task_kind="walsh_rotl_xor",
+                    n_bits=4, rot_amount=2, train_frac=1.0, seed=0, p=16)
+    tx, ty, _, _ = make_dataset_from_cfg(cfg, device="cpu")
+    a, b = tx[:, 0].cpu().numpy(), tx[:, 1].cpu().numpy()
+    mask = 15
+    rotl_b = (((b.astype(np.int64) << 2) | (b.astype(np.int64) >> 2)) & mask)
+    assert (ty.cpu().numpy() == (a ^ rotl_b)).all()
+
+
 def test_walsh_task_shape_dispatch():
     assert walsh_task_shape(RunConfig(task_kind="walsh_parity", n_bits=8))       == (1, 2)
     assert walsh_task_shape(RunConfig(task_kind="walsh_xor",    n_bits=6))       == (2, 64)
+    assert walsh_task_shape(RunConfig(task_kind="walsh_rotl_xor", n_bits=6))     == (2, 64)
     assert walsh_task_shape(RunConfig(task_kind="walsh_popcount_mod", mod_base=4)) == (1, 4)
     assert walsh_task_shape(RunConfig(task_kind="walsh_rotl",   n_bits=5))       == (1, 32)
 

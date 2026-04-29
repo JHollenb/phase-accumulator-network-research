@@ -60,6 +60,7 @@ def run_row(result: TrainResult, experiment: str) -> dict:
         "weight_decay":     cfg.weight_decay,
         "diversity_weight": cfg.diversity_weight,
         "freq_init":        cfg.freq_init,
+        "mask_init":        cfg.mask_init,
         "n_steps_planned":  cfg.n_steps,
         "n_steps_actual":   h.steps[-1] if h.steps else 0,
         "grok_step":        h.grok_step if h.grok_step is not None else -1,

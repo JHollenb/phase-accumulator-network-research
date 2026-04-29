@@ -12,7 +12,17 @@ Walsh / F_2^n (WAN side):
     walsh_xor_subset:   x -> XOR over a fixed bit subset of x
     walsh_popcount_mod: x -> (sum_i x_i) mod `mod_base`
     walsh_xor:          (a, b) -> a XOR b  (label in [0, 2^n_bits))
-    walsh_rotl:         x -> rotate-left(x, r)
+    walsh_rotl:         x -> rotate-left(x, r)       [single-input bijection,
+                                                        hard to grok — see note]
+    walsh_rotl_xor:     (a, b) -> a XOR rotl(b, r)   [two-input; (2^n)² pairs;
+                                                        the proper grokking analog]
+
+Note on walsh_rotl: as a single-input bijection over 2^n_bits tokens,
+the ratio of training samples to decoder parameters is K/train_frac
+(independent of n_bits).  This means the decoder can always memorise the
+training set regardless of n_bits — grokking requires a much larger step
+budget (200K+).  walsh_rotl_xor uses two inputs so the dataset grows
+quadratically, matching the mod_add scaling that makes grokking tractable.
 
 Splits are deterministic functions of `seed` so the same config always
 produces the same train/val partition across machines.
@@ -29,7 +39,7 @@ from pan_lab.config import DEVICE
 TaskKind = Literal[
     "mod_add", "mod_mul", "mod_two_step",
     "walsh_parity", "walsh_bit", "walsh_xor_subset",
-    "walsh_popcount_mod", "walsh_xor", "walsh_rotl",
+    "walsh_popcount_mod", "walsh_xor", "walsh_rotl", "walsh_rotl_xor",
 ]
 
 
@@ -208,6 +218,17 @@ def _make_walsh_dataset(
         labels = _rotl(x, int(rot_amount), n_bits)
         inputs = x.reshape(-1, 1)
 
+    elif task_kind == "walsh_rotl_xor":
+        # Two-input task: y = a XOR rotl(b, r).
+        # Dataset size (2^n)^2 — same quadratic scaling as walsh_xor, so
+        # the training/decoder-parameter ratio improves with n_bits and
+        # grokking is tractable.  WAN must discover that encoder_b uses a
+        # rotationally-shifted mask relative to encoder_a.
+        a      = np.repeat(np.arange(N, dtype=np.int64), N)
+        b      = np.tile  (np.arange(N, dtype=np.int64), N)
+        labels = (a ^ _rotl(b, int(rot_amount), n_bits)).astype(np.int64)
+        inputs = np.stack([a, b], axis=1)
+
     else:
         raise ValueError(f"Unknown walsh task_kind: {task_kind!r}")
 
@@ -258,4 +279,5 @@ def walsh_task_shape(cfg) -> Tuple[int, int]:
     if kind == "walsh_popcount_mod": return (1, int(cfg.mod_base))
     if kind == "walsh_xor":          return (2, 1 << n_bits)
     if kind == "walsh_rotl":         return (1, 1 << n_bits)
+    if kind == "walsh_rotl_xor":     return (2, 1 << n_bits)
     raise ValueError(f"Not a walsh task: {kind!r}")

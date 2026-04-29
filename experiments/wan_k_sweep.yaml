@@ -12,7 +12,7 @@ base:
   train_frac:       0.4
   n_steps:          40000
   batch_size:       128
-  lr:               3e-3
+  lr:               3.0e-3
   weight_decay:     0.01
   diversity_weight: 0.01
   early_stop:       true
