@@ -15,17 +15,19 @@ import torch.nn.functional as F
 class TransformerBaseline(nn.Module):
     def __init__(
         self,
-        p:        int,
-        d_model:  int = 128,
-        n_heads:  int = 4,
-        d_mlp:    int = 512,
-        n_inputs: int = 2,
+        p:         int,
+        d_model:   int = 128,
+        n_heads:   int = 4,
+        d_mlp:     int = 512,
+        n_inputs:  int = 2,
+        n_classes: int = None,
     ):
         super().__init__()
-        self.p        = p
-        self.d_model  = d_model
-        self.n_inputs = n_inputs
-        self.seq_len  = n_inputs + 1      # inputs + "="
+        self.p         = p
+        self.d_model   = d_model
+        self.n_inputs  = n_inputs
+        self.seq_len   = n_inputs + 1      # inputs + "="
+        self.n_classes = n_classes if n_classes is not None else p
 
         # Tokens are [0..P-1] for data, P for the "=" separator.
         self.tok_embed = nn.Embedding(p + 1, d_model)
@@ -36,7 +38,7 @@ class TransformerBaseline(nn.Module):
             nn.ReLU(),
             nn.Linear(d_mlp, d_model),
         )
-        self.unembed = nn.Linear(d_model, p, bias=False)
+        self.unembed = nn.Linear(d_model, self.n_classes, bias=False)
 
         for m in self.modules():
             if isinstance(m, (nn.Linear, nn.Embedding)):

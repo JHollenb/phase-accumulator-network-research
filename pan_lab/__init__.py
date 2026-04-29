@@ -25,12 +25,16 @@ that doesn't exist today can be added in three steps: write the YAML, add
 a function in pan_lab/experiments.py, register it.
 """
 from pan_lab.config import RunConfig, DEVICE, TWO_PI, PHASE_SCALE
-from pan_lab.data import make_modular_dataset
+from pan_lab.data import make_modular_dataset, make_dataset_from_cfg, walsh_task_shape
 from pan_lab.models import (
     PhaseAccumulatorNetwork,
     PhaseEncoder,
     PhaseMixingLayer,
     PhaseGate,
+    WalshAccumulatorNetwork,
+    WalshEncoder,
+    WalshMixingLayer,
+    WalshGate,
     TransformerBaseline,
     make_model,
 )
@@ -52,10 +56,16 @@ __all__ = [
     "TWO_PI",
     "PHASE_SCALE",
     "make_modular_dataset",
+    "make_dataset_from_cfg",
+    "walsh_task_shape",
     "PhaseAccumulatorNetwork",
     "PhaseEncoder",
     "PhaseMixingLayer",
     "PhaseGate",
+    "WalshAccumulatorNetwork",
+    "WalshEncoder",
+    "WalshMixingLayer",
+    "WalshGate",
     "TransformerBaseline",
     "make_model",
     "train",

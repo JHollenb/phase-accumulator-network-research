@@ -1,0 +1,47 @@
+# WAN rotl — two-input rotation task (the proper grokking analog).
+#
+# y = a XOR rotl(b, r) for fixed r.  Two inputs give (2^n)^2 = 4096 pairs
+# at n_bits=6, so the training-to-decoder-parameter ratio scales with n_bits
+# exactly as mod_add does for PAN.
+#
+# The structural solution: encoder_a[k] reads bit k of a; encoder_b[k]
+# reads bit (k+r) mod n_bits of b (a rotationally-shifted mask).  WAN must
+# discover the rotation offset autonomously — this is the mechanistic claim.
+#
+# Why not single-input walsh_rotl?  Single-input bijection has 2^n samples
+# and K*2^n decoder parameters; the training/parameter ratio is K/train_frac
+# regardless of n_bits, so the decoder always memorises without generalising.
+experiment: grid_sweep
+out_dir:    results/wan_rotl
+
+base:
+  model_kind:       wan
+  task_kind:        walsh_rotl_xor
+  n_bits:           6                # 64x64 = 4096 pairs  (parallel to wan_xor_two)
+  rot_amount:       3
+  train_frac:       0.4
+  n_steps:          30000
+  batch_size:       128
+  lr:               3.0e-3
+  weight_decay:     0.01
+  diversity_weight: 0.01
+  early_stop:       true
+  grok_threshold:   0.99
+  log_every:        300
+  mask_init:        random
+  p:                64               # 2^n_bits
+
+grid:
+  k_freqs: [4, 6, 8, 12]
+  seed:    [42, 123, 456]
+
+options:
+  ablations: true
+  slots:     false
+  metrics:   false
+
+plots:
+  - {type: training_curves, title: "WAN rotl(x, 3)"}
+  - {type: sweep_reliability, group_by: k_freqs,
+     filename: reliability_k.png,
+     title: "Rotl reliability vs K"}

@@ -5,6 +5,12 @@ from pan_lab.models.pan         import (
     PhaseGate,
     PhaseAccumulatorNetwork,
 )
+from pan_lab.models.wan         import (
+    WalshEncoder,
+    WalshMixingLayer,
+    WalshGate,
+    WalshAccumulatorNetwork,
+)
 from pan_lab.models.transformer import TransformerBaseline
 from pan_lab.models.quantize    import quantize_phase_sifp16
 
@@ -41,7 +47,29 @@ def make_model(cfg):
             n_inputs  = n_inputs,
             freq_init = cfg.freq_init,
         )
+    if cfg.model_kind == "wan":
+        from pan_lab.data import walsh_task_shape
+        n_inputs, n_classes = walsh_task_shape(cfg)
+        return WalshAccumulatorNetwork(
+            n_bits    = cfg.n_bits,
+            k_freqs   = cfg.k_freqs,
+            n_inputs  = n_inputs,
+            n_classes = n_classes,
+            mask_init = cfg.mask_init,
+        )
     if cfg.model_kind == "transformer":
+        # Transformer baseline over 2^n_bits tokens for Walsh tasks.
+        if cfg.task_kind.startswith("walsh_"):
+            from pan_lab.data import walsh_task_shape
+            n_inputs, n_classes = walsh_task_shape(cfg)
+            return TransformerBaseline(
+                p        = 1 << cfg.n_bits,
+                d_model  = cfg.d_model,
+                n_heads  = cfg.n_heads,
+                d_mlp    = cfg.d_mlp,
+                n_inputs = n_inputs,
+                n_classes = n_classes,
+            )
         return TransformerBaseline(
             p        = cfg.p,
             d_model  = cfg.d_model,
@@ -57,6 +85,10 @@ __all__ = [
     "PhaseMixingLayer",
     "PhaseGate",
     "PhaseAccumulatorNetwork",
+    "WalshEncoder",
+    "WalshMixingLayer",
+    "WalshGate",
+    "WalshAccumulatorNetwork",
     "TransformerBaseline",
     "quantize_phase_sifp16",
     "make_model",
