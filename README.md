@@ -80,6 +80,30 @@ WAN experiments establish the F_2^n analog of every PAN sweep.
 Additional local sweeps may live in `experiments/` but aren't part of
 the paper set.
 
+## Notebooks
+
+Companion notebooks live in `notebooks/`. They load CSVs and saved `.pt` files
+from `results/` — no retraining.
+
+| Notebook | What it covers |
+|---|---|
+| `01_diffusion_investigation.ipynb` | Early diffusion-style experiments; historical snapshot |
+| `02_nanda_grokking.ipynb` | Nanda 2023 demo on the compare run (weights not saved; read-only) |
+| `03_pan_grokking_walkthrough.ipynb` | Full mechanistic walkthrough: Nanda's four progress measures on both TF and PAN, PAN-native formation curves, population statistics (K=13 × 2 inits, K=5 insufficient regime, 8 cross-primes), SIFP-16 precision scatter |
+
+To execute `03_pan_grokking_walkthrough.ipynb` you first need the five result sets it reads:
+
+```bash
+uv run python -m pan_lab experiments/compare.yaml
+uv run python -m pan_lab experiments/paper_k13_fourier.yaml
+uv run python -m pan_lab experiments/paper_k13_random.yaml
+uv run python -m pan_lab experiments/paper_k5_extended.yaml
+uv run python -m pan_lab experiments/paper_cross_primes.yaml
+# then:
+uv run jupyter nbconvert --to notebook --execute --inplace \
+    notebooks/03_pan_grokking_walkthrough.ipynb
+```
+
 ## CSV schema
 
 Every experiment writes (at minimum) these to its `out_dir`:
@@ -165,6 +189,7 @@ pan_lab/
 │   ├── grid_sweep.py      generic sweep: base + grid + options + plots
 │   └── cli.py             python -m pan_lab entry
 ├── experiments/           28 YAML specs (21 PAN/TF + 7 WAN)
+├── notebooks/             companion notebooks (see below)
 ├── tests/                 108 pytest tests, ~10s on CPU
 └── pyproject.toml
 ```
